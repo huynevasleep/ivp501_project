@@ -16,6 +16,8 @@ def normalize(x):
 
 
 def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
+    if not np.isfinite(sample_fps) or sample_fps <= 0:
+        raise ValueError('Tốc độ lấy mẫu phải dương và hữu hạn.')
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     cap = cv2.VideoCapture(str(path))
     fps = cap.get(cv2.CAP_PROP_FPS); count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -76,6 +78,9 @@ def select(df, meta, ratio=.15, mode='balanced', diversity=True, optimizer='gree
     if not 0 < ratio <= 1: raise ValueError('ratio phải thuộc (0, 1].')
     weights = {'balanced': [.25,.15,.2,.25,.15], 'sports': [.55,.05,.1,.2,.1], 'lecture': [.1,.3,.25,.2,.15], 'motion': [1,0,0,0,0], 'no_motion': [0,.2,.25,.35,.2]}
     weights['uniform'] = [0,0,0,0,0]
+    if mode not in weights: raise ValueError('Chế độ chọn đoạn không hợp lệ.')
+    if optimizer not in ('greedy','knapsack'): raise ValueError('Thuật toán chọn đoạn không hợp lệ.')
+    if df.empty: raise ValueError('Không có đặc trưng để chọn đoạn.')
     cols = ['motion_norm','faces_norm','sharpness_norm','color_norm','difference_norm']
     score = df[cols].to_numpy() @ np.array(weights[mode])
     budget = meta['duration']*ratio
@@ -83,7 +88,7 @@ def select(df, meta, ratio=.15, mode='balanced', diversity=True, optimizer='gree
     segments = []
     # Split long scenes so even short summaries have feasible candidates.
     for a,b in zip(boundaries[:-1], boundaries[1:]):
-        n = max(1, int(np.ceil((b-a)/max(.1, min(4., budget)))))
+        n = max(1, int(np.ceil((b-a)/min(4., budget))))
         edges = np.linspace(a,b,n+1)
         for start,end in zip(edges[:-1],edges[1:]):
             idx = np.flatnonzero((df.time >= start)&(df.time < end))
@@ -124,7 +129,7 @@ def knapsack_select(segments, budget, max_bins=2000):
     Diversity bonus is deliberately excluded: it is not an additive objective.
     """
     if budget <= 0: return []
-    unit=max(.05,budget/max_bins)
+    unit=min(budget,max(.05,budget/max_bins))
     capacity=int(np.floor(budget/unit+1e-9))
     values=np.zeros(capacity+1)
     decisions=np.zeros((len(segments),capacity+1),dtype=bool)
@@ -145,6 +150,7 @@ def knapsack_select(segments, budget, max_bins=2000):
 
 def export_video(source, segments, out):
     out = Path(out); exe = imageio_ffmpeg.get_ffmpeg_exe()
+    out.mkdir(parents=True,exist_ok=True)
     if not segments: raise ValueError('Không có đoạn được chọn.')
     clips=[]
     for i,s in enumerate(segments):
@@ -160,6 +166,8 @@ def export_video(source, segments, out):
 
 
 def boundary_f1(pred, truth, tolerance=.5):
+    if not np.isfinite(tolerance) or tolerance < 0: raise ValueError('Sai số phải không âm và hữu hạn.')
+    if any(not np.isfinite(x) or x<0 for x in [*pred,*truth]): raise ValueError('Ranh giới phải là số hữu hạn không âm.')
     # Sorted greedy matching maximizes cardinality for ordered tolerance intervals.
     p=sorted(pred); g=sorted(truth); i=j=hits=0
     while i<len(p) and j<len(g):
@@ -170,6 +178,8 @@ def boundary_f1(pred, truth, tolerance=.5):
 
 
 def summary_f1(segments, references, duration, hz=10):
+    if not np.isfinite(duration) or duration<=0 or not np.isfinite(hz) or hz<=0:
+        raise ValueError('Thời lượng và tần số đánh giá phải dương và hữu hạn.')
     t=np.arange(0,duration,1/hz)
     def mask(intervals):
         m=np.zeros(len(t),bool)
