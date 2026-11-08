@@ -121,8 +121,11 @@ def analyze_match(source, out, rate=3., roi=(0.,0.,1.,1.), threshold=.32,
     return df,meta,candidates
 
 
-def choose_rallies(candidates, seconds):
-    return knapsack_select([s for s in candidates if not s['needs_review']],seconds)
+def choose_rallies(candidates, seconds=None):
+    eligible=[s for s in candidates if not s['needs_review']]
+    if seconds is None:
+        return sorted(eligible,key=lambda s:s['start'])
+    return knapsack_select(eligible,seconds)
 
 
 def review_rallies(table,duration,budget=None):

@@ -14,8 +14,8 @@ from presentation import FEATURES, MODES, METHODS, timestamp, reason, segment_ta
 st.set_page_config(page_title='VideoLens • Video Analytics', page_icon='🎬', layout='wide')
 st.title('🎬 VideoLens')
 st.caption('Phân tích video • Khung hình chính • Highlight có giải thích')
-workflow=st.sidebar.radio('Mục đích sử dụng',['Highlight pickleball','Rally phát sóng / video tổng quát'],index=1 if 'result' in st.session_state else 0)
-if workflow=='Highlight pickleball':
+workflow=st.sidebar.radio('Mục đích sử dụng',['Dự án pickleball','Phòng thí nghiệm: baseline / video khác'],index=1 if 'result' in st.session_state else 0)
+if workflow=='Dự án pickleball':
     from match_ui import render
     render()
     st.stop()
@@ -67,6 +67,15 @@ else:
     st.caption('Thời gian hiển thị theo phút:giây.phần mười giây; video dài có thêm giờ.')
     preview,analytics,evaluation,annotation=st.tabs(['▶ Kết quả','📊 Phân tích','🧪 Đánh giá','✍ Gán nhãn'])
     with preview:
+        from rally_export import export_individual, show_individual
+        if st.button('Xuất mỗi pha thành một video riêng',key='generic_split'):
+            sources=list(out.glob('input.*'))
+            if sources:
+                with st.spinner('Đang xuất từng video pha…'):
+                    st.session_state[f'split_{out.name}']=export_individual(sources[0],segments,out)
+            else: st.error('Không tìm thấy video nguồn để tách theo mốc đã lưu.')
+        if f'split_{out.name}' in st.session_state:
+            show_individual(st.session_state[f'split_{out.name}'],f'generic_{out.name}')
         st.video(str(video))
         st.download_button('Tải highlight MP4',video.read_bytes(),'highlight.mp4','video/mp4')
         shots=json.loads((out/'shots.json').read_text(encoding='utf-8')) if (out/'shots.json').exists() else []

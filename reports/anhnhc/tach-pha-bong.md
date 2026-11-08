@@ -2,6 +2,8 @@
 
 *anhnhc · cập nhật 08/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
 
+**Bổ sung sau merge local:** xem [đối chiếu ba mục tiêu](../project-audit.md) về công cụ quỹ đạo ứng viên, sự kiện xác nhận, ghép toàn bộ pha và xử lý ảnh. Các số liệu trong báo cáo này vẫn là kết quả của nhánh tác giả; công cụ mới chưa được đo trên trận có nhãn nên không thay thế các kết luận dưới đây.
+
 Ghi chú này bám theo 3 mục tiêu của đề tài. Với mỗi mục tiêu, nó ghi rõ đã làm gì, bằng thuật toán nào, đo được gì, và còn thiếu gì. Mọi con số đo trên một trận pickleball 67 phút (854×480, 29,97 fps) bằng code hiện tại của nhánh.
 
 **Ai trong nhóm (người hay agent) thấy làm được việc nào ở mục 7 "Việc mở" thì nhận và làm**, không cần chờ ai duyệt trước.

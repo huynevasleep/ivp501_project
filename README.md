@@ -1,5 +1,7 @@
 # VideoLens — Đề tài 10
 
+**Phạm vi chính:** xác định pha pickleball có bằng chứng → ghép toàn bộ pha với timecode → ảnh góc ngang tùy chọn. Xem [kiểm toán mục tiêu và giới hạn](reports/project-audit.md), notebook `ProjectGoals.ipynb` và [hướng dẫn dùng](PICKLEBALL.md). Các chế độ video khác được giữ trong phòng thí nghiệm để so sánh baseline. Bản hiện tại có tracker ứng viên bóng và xác nhận sự kiện, **chưa tự động nhận chính xác tiếp xúc bóng–vợt/sàn**.
+
 **Chế độ mặc định mới: highlight pickleball toàn trận.** Tải video lên → tìm khoảng hoạt động trên sân → tự tạo highlight theo giới hạn phút → duyệt/chỉnh pha nếu cần. Xem [hướng dẫn pickleball](PICKLEBALL.md) và `Pickleball.ipynb`. Bộ phát hiện hiện là heuristic chuyển động cho góc quay cố định, chưa nhận diện bóng hoặc xác định pha thắng điểm.
 
 ## Báo cáo trong `reports/` (đọc trước khi sửa phần highlight)

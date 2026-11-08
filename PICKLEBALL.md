@@ -1,6 +1,22 @@
 # Highlight pickleball từ video toàn trận
 
-Chạy `python -m streamlit run app.py` bằng Python trong `.venv`, mở http://localhost:8501. Chọn **Highlight pickleball**, tải video, đặt thời lượng tối đa (mặc định 3 phút), nhấn **Phân tích trận & tạo highlight**. Chế độ này là mặc định; chế độ video tổng quát vẫn có thể chọn ở thanh bên.
+**Xuất riêng từng pha:** mỗi khoảng pha đã chọn tạo một MP4 `pha_0001.mp4`, `pha_0002.mp4`… Có chọn video để xem, tải từng pha và ZIP chứa tất cả pha cùng `rallies.json`. Mỗi lần xuất có thư mục riêng trong `runs/<id>/individual/` để không lẫn video cũ. Kết quả ghép cũ có nút tách theo mốc đã lưu, không cần phân tích lại. Đây là thay đổi cách xuất; độ đúng ranh giới vẫn phụ thuộc phát hiện và duyệt pha.
+
+Ô **Xem video riêng của một pha** phát file đã cắt thật từ 0:00, hiển thị thời lượng riêng của pha. Video gốc chỉ mở khi bật **Mở video gốc để đối chiếu**; trình phát gốc sẽ hiển thị thời lượng toàn trận. Các khoảng bất thường trên 90 giây phải chỉnh mốc trước khi xem như một pha riêng.
+
+## Cập nhật theo ba mục tiêu
+
+Mặc định xuất **Toàn bộ pha đề xuất**, không còn giới hạn ba phút. Khoảng hoạt động dài cần duyệt vẫn không tự chọn. Có thể bật chế độ giới hạn thời lượng nếu chỉ cần clip ngắn. Sau xuất có `timecodes.csv` chứa mốc video gốc và vị trí tương ứng trong highlight.
+
+Các công cụ bên dưới kết quả:
+
+1. **Kiểm tra bóng:** chọn đoạn ≤120 giây, chỉnh hue bóng nếu cần, xem overlay ở FPS gốc, tải CSV và ảnh đổi hướng. Đường quỹ đạo là ứng viên, không chứng minh chạm vợt hay sàn.
+2. **Xác nhận sự kiện:** thêm các hàng giao bóng (`serve`) và kết thúc (`rally_end`), đánh dấu đã xác nhận để ghép toàn bộ pha. Bóng nảy/mất dấu không tự đóng pha. Pha mở bị cảnh báo. Công cụ vẫn dùng được khi baseline không tìm thấy ứng viên.
+3. **Ảnh góc ngang:** kiểm tra góc nhìn trong video gốc, chọn khoảng ≤20 giây, ROI người và mức khử nhiễu/tăng nét. Có giảm mờ thử nghiệm theo PSF vệt thẳng; so sánh ảnh gốc và sau, tải cả thông số.
+
+Đánh giá theo pha dùng JSON `{"rallies": [{"start": 10, "end": 20}]}`. UI báo F1 ghép một-một tại IoU 0.5 và MAE đầu/cuối. Nhãn phải được người xem tạo độc lập. Xem `ProjectGoals.ipynb` và `reports/project-audit.md` để biết phần nghiên cứu còn thiếu.
+
+Chạy `python -m streamlit run app.py` bằng Python trong `.venv`, mở http://localhost:8501. Chọn **Highlight pickleball**, tải video, chọn toàn bộ pha hoặc giới hạn phút nếu cần, nhấn **Phân tích trận & tạo highlight**. Chế độ này là mặc định; chế độ video tổng quát vẫn có thể chọn ở thanh bên.
 
 ## Những thay đổi so với bộ tóm tắt tổng quát
 
