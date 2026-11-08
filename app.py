@@ -22,8 +22,10 @@ if workflow=='Dự án pickleball':
 with st.sidebar:
     st.header('Thiết lập phân tích')
     upload=st.file_uploader('Video của bạn', type=['mp4','mov','avi','mkv'])
-    ratio=st.slider('Độ dài tóm tắt (%)',5,80,15)/100
     mode=st.selectbox('Loại video', list(MODES),format_func=MODES.get)
+    # Pha bóng là đơn vị trọn vẹn: mặc định lấy hết, không ép tỉ lệ (ép tỉ lệ làm rơi pha và mất mạch trận).
+    take_all=mode=='rally' and st.checkbox('Lấy toàn bộ pha bóng (không giới hạn thời lượng)',True)
+    ratio=1. if take_all else st.slider('Độ dài tóm tắt (%)',5,80,15)/100
     rate=st.slider('Số khung phân tích / giây',1,5,2)
     sensitivity=st.slider('Ngưỡng chuyển cảnh (cao = ít cảnh)',1.,6.,3.)
     diversity=st.checkbox('Ưu tiên đa dạng cụm màu',True)

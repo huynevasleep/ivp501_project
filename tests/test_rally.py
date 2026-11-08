@@ -66,6 +66,12 @@ def test_select_keeps_whole_rallies_within_budget():
     assert chosen == []
 
 
+def test_ratio_one_keeps_every_rally():
+    df, meta = timeline(MATCH)
+    chosen, _ = select(df, meta, ratio=1., mode='rally')
+    assert [(c['start'], c['end']) for c in chosen] == [(r['start'], r['end']) for r in detect_rallies(df, meta)]
+
+
 def test_best_shot_crops_the_moving_player(tmp_path):
     path = tmp_path/'court.mp4'; fps = 24
     writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*'mp4v'), fps, (320, 240))
