@@ -91,3 +91,36 @@ def test_best_shot_crops_the_moving_player(tmp_path):
     assert 30 <= shot['frame'] < 60
     assert shot['box'][3] >= 90
     assert (tmp_path/shot['image']).exists() and (tmp_path/shot['full_image']).exists()
+
+
+def _court_frame(rng, shift=0):
+    """Fixed court camera: straight court lines on a textured floor; players move."""
+    img = (rng.random((180, 320))*30+60).astype(np.uint8)
+    for y in (40, 90, 150):
+        cv2.line(img, (20, y), (300, y), 255, 2)
+    cv2.line(img, (20, 40), (20, 150), 255, 2); cv2.line(img, (300, 40), (300, 150), 255, 2)
+    x = int(rng.integers(40, 260)); cv2.rectangle(img, (x, 60+shift), (x+12, 100+shift), 200, -1)
+    return cv2.GaussianBlur(img, (5, 5), 0)
+
+
+def test_court_cameras_from_edges_alone():
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(0)
+    frames, camera = [], []
+    for _ in range(30): frames.append(_court_frame(rng)); camera.append(0)                    # fixed court camera
+    for _ in range(30):                                                                          # hand-held close-up: edges move every frame
+        img = np.zeros((180, 320), np.uint8); cx, cy = rng.integers(60, 260), rng.integers(40, 140)
+        cv2.circle(img, (int(cx), int(cy)), int(rng.integers(20, 60)), 255, -1); frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(1)
+    for _ in range(30):                                                                          # static but with no straight lines
+        img = np.zeros((180, 320), np.uint8); cv2.circle(img, (160, 90), 50, 255, -1); frames.append(cv2.GaussianBlur(img, (9, 9), 0)); camera.append(2)
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    score, court_ids = court_cameras(edges, camera)
+    assert court_ids == [0]
+    assert score[:30].min() > .8 and score[30:].max() < .3
+
+
+def test_detect_rallies_uses_edge_court_score():
+    df, meta = timeline(MATCH)
+    df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
+    df['motion'] = 1.                                           # motion no longer decides
+    assert [(r['core_start'], r['core_end']) for r in detect_rallies(df, meta)] == [(8., 20.), (27., 30.)]

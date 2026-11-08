@@ -42,6 +42,54 @@ def audio_loudness(path, times, window):
     return np.array(out)
 
 
+def _edges(gray):
+    """Canny edge map (bool) of a 320x180 frame; Gaussian 3x3 first to drop sensor noise."""
+    return cv2.Canny(cv2.GaussianBlur(gray, (3, 3), 0), 50, 150) > 0
+
+
+_TOLERANCE = np.ones((3, 3), np.uint8)       # a 1-pixel shift of an edge still counts as the same edge
+
+
+def edge_dice(edges, template, template_wide):
+    """Two-way agreement of an edge map with a template: Dice of
+    recall (template edges found in the frame) and precision (frame edges lying on the template).
+    Precision keeps busy images (crowd, aerial shots), whose dense edges cover any template, low."""
+    wide = cv2.dilate(edges.astype(np.uint8), _TOLERANCE) > 0
+    recall = (wide & template).sum()/max(template.sum(), 1)
+    precision = (edges & template_wide).sum()/max(edges.sum(), 1)
+    return float(2*recall*precision/max(recall+precision, 1e-9))
+
+
+def court_cameras(edges, camera):
+    """Find the fixed court cameras from edges alone and score every frame against them.
+
+    edges: (N, H*W/8) packed Canny maps; camera: K-means layout cluster per frame.
+    For each cluster the template is the median edge map (edge in >= half of its frames).
+    A fixed camera keeps its edges in place, so its frames match its template; a hand-held
+    or moving shot does not. Fixed clusters = high side of an Otsu split of log median
+    self-match (weighted by size); court = fixed AND its template has straight lines (Hough:
+    court lines, net). Returns (per-frame best Dice against court templates, court cluster ids).
+    """
+    shape = (180, 320)
+    unpack = lambda k: np.unpackbits(edges[k])[:shape[0]*shape[1]].reshape(shape).astype(bool)
+    camera = np.asarray(camera); stats = []
+    for c in np.unique(camera):
+        idx = np.flatnonzero(camera == c)
+        template = np.mean([unpack(k) for k in idx], axis=0) >= .5
+        wide = cv2.dilate(template.astype(np.uint8), _TOLERANCE) > 0
+        match = np.median([edge_dice(unpack(k), template, wide) for k in idx])
+        lines = cv2.HoughLinesP(template.astype(np.uint8)*255, 1, np.pi/180, 30, minLineLength=shape[1]//5, maxLineGap=4)
+        stats.append((c, len(idx), match, 0 if lines is None else len(lines), template, wide))
+    log_match = np.log(np.clip([s[2] for s in stats], 1e-3, None))
+    cut = otsu_threshold(log_match, [s[1] for s in stats])
+    court = [s for s, m in zip(stats, log_match) if m > cut and s[3] > 0]
+    score = np.zeros(len(camera))
+    for k in range(len(camera)):
+        e = unpack(k)
+        score[k] = max((edge_dice(e, s[4], s[5]) for s in court), default=0.)
+    return score, [int(s[0]) for s in court]
+
+
 def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
     if not np.isfinite(sample_fps) or sample_fps <= 0:
         raise ValueError('Tốc độ lấy mẫu phải dương và hữu hạn.')
@@ -52,7 +100,7 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
         cap.release(); raise ValueError('Không đọc được video. Hãy dùng MP4/H.264 hợp lệ.')
     step = max(1, round(fps/sample_fps))
     face = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml')
-    rows, histograms, layouts = [], [], []
+    rows, histograms, layouts, edge_maps = [], [], [], []
     prev = ph = None
     i = 0
     try:
@@ -81,6 +129,7 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
                 histograms.append(h); prev, ph = gray, h
                 # Coarse colour layout: frames from the same fixed camera look alike.
                 layouts.append(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2LAB), (16, 9), interpolation=cv2.INTER_AREA).astype(np.float32).ravel())
+                edge_maps.append(np.packbits(_edges(gray)))     # 7 KB per frame; a 67-minute match needs ~58 MB
                 if progress: progress(min(i/count, .99))
             i += 1
     finally:
@@ -98,10 +147,12 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
     duration = i/fps
     df['cluster'] = KMeans(n_clusters=min(8, len(df), len(np.unique(histograms, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(histograms))
     df['camera'] = KMeans(n_clusters=min(12, len(df), len(np.unique(layouts, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(layouts))
+    df['court_score'], court_ids = court_cameras(np.asarray(edge_maps), df.camera.to_numpy())
     df['loudness_db'] = audio_loudness(path, df.time.to_numpy(), step/fps)
     for col in ['motion', 'faces', 'sharpness', 'color', 'difference']:
         df[col+'_norm'] = normalize(df[col])
-    meta = dict(duration=duration, fps=fps, frames=i, sample_fps=fps/step, cuts=cuts, threshold=threshold)
+    meta = dict(duration=duration, fps=fps, frames=i, sample_fps=fps/step, cuts=cuts, threshold=threshold,
+                court_cameras=court_ids, court_threshold=otsu_threshold(df.court_score) if df.court_score.max() > 0 else 1.)
     df.to_csv(out/'features.csv', index=False)
     (out/'metadata.json').write_text(json.dumps(meta, indent=2), encoding='utf-8')
     return df, meta
@@ -122,8 +173,8 @@ def _rank(x):
 def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
     """Rallies of a broadcast racket-sport match, as whole intervals that are never cut.
 
-    A rally is a quiet stretch while a fixed court camera is on screen: fixed cameras are the
-    colour-layout clusters on the low side of an Otsu split of log median motion, and "quiet" is
+    A rally is a quiet stretch while a fixed court camera is on screen: a frame is on a court camera
+    when its Canny edges match a court camera's edge template (`court_cameras`), and "quiet" is
     the low side of an Otsu split of loudness (crowds hush during play, cheer after the point).
     Interval = [first quiet sample - pre, last quiet sample + post), so the serve and the
     reaction are inside; the pre-roll never reaches back past the start of the court shot. Score = mean percentile rank of rally length and of the loudest
@@ -132,11 +183,15 @@ def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
     if df.empty or 'camera' not in df or 'loudness_db' not in df:
         raise ValueError('Thiếu đặc trưng camera/âm thanh: hãy phân tích lại video.')
     step = 1/meta['sample_fps']; t = df.time.to_numpy(); duration = meta['duration']
-    stats = df.groupby('camera').motion.agg(['median', 'size'])
-    # Motion differs by ratio (hand-held ~10x a fixed camera), so split on the log scale.
-    log_motion = np.log(stats['median'].to_numpy()+1e-3)
-    fixed = stats.index[log_motion <= otsu_threshold(log_motion, stats['size'])]
-    court = df.camera.isin(fixed).to_numpy()
+    if 'court_score' in df and 'court_threshold' in meta:
+        # Court camera from edges: the frame matches a fixed court camera's edge template.
+        court = (df.court_score > meta['court_threshold']).to_numpy()
+    else:
+        # Analyses made before edge templates existed: fixed cameras = low log median motion.
+        stats = df.groupby('camera').motion.agg(['median', 'size'])
+        log_motion = np.log(stats['median'].to_numpy()+1e-3)
+        fixed = stats.index[log_motion <= otsu_threshold(log_motion, stats['size'])]
+        court = df.camera.isin(fixed).to_numpy()
     loud = df.loudness_db.to_numpy()
     quiet = np.ones(len(df), bool) if np.isnan(loud).all() else loud < otsu_threshold(loud)
     play = court & quiet
