@@ -2,6 +2,14 @@
 
 **Chế độ mặc định mới: highlight pickleball toàn trận.** Tải video lên → tìm khoảng hoạt động trên sân → tự tạo highlight theo giới hạn phút → duyệt/chỉnh pha nếu cần. Xem [hướng dẫn pickleball](PICKLEBALL.md) và `Pickleball.ipynb`. Bộ phát hiện hiện là heuristic chuyển động cho góc quay cố định, chưa nhận diện bóng hoặc xác định pha thắng điểm.
 
+## Báo cáo trong `reports/` (đọc trước khi sửa phần highlight)
+
+Người và agent làm tiếp phần highlight/ảnh vận động viên: đọc báo cáo trong `reports/` trước, rồi cập nhật nó khi đổi thuật toán hoặc có số đo mới. Mỗi báo cáo có mục **Việc mở**: ai làm được việc nào thì ghi tên nhận và làm, không cần chờ duyệt. Bản HTML sinh từ `.md` bằng `python reports/build_html.py` (cần `pip install markdown`).
+
+| Báo cáo | Tác giả | Nội dung | Tình trạng (08/11/2026) |
+|---|---|---|---|
+| [`reports/anhnhc/tach-pha-bong.md`](reports/anhnhc/tach-pha-bong.md) (bản HTML cùng thư mục, sinh từ file `.md`) | anhnhc | 3 mục tiêu đề tài; thuật toán tách pha bóng đang chạy (camera sân + khán giả im, Otsu), các bước, hình và số đo trên trận pickleball 67 phút; kế hoạch bắt bóng–vợt và tăng nét/giảm mờ ảnh | Mục tiêu 2 (ghép pha có timecode) đã chạy. Mục tiêu 1 mới có bản nền gián tiếp, **chưa nhận bóng/vợt**. Mục tiêu 3 mới chọn khung (~4/12 ảnh dùng được), chưa tăng nét. **Việc mở V1–V6** (mục 7): tìm video ≥ 1080p, gán nhãn người, bắt bóng, nhận cú chạm vợt/chạm sàn, giữ cảnh camera lia, tăng nét ảnh góc ngang |
+
 ## Bản nâng cấp thực nghiệm
 
 Giao diện có lựa chọn greedy/knapsack, timeline đoạn chọn, biểu đồ đóng góp đặc trưng và tab gán nhãn trực tiếp khi xem video gốc. Tải lại localhost để dùng bản mới; phân tích lại video để tạo báo cáo có trường giải thích.
@@ -17,6 +25,27 @@ Manifest chứa tỷ lệ và danh sách đường dẫn video/labels (tương �
 Đóng góp có thể trình bày trong báo cáo: so sánh tối ưu ngân sách với ưu tiên đa dạng; phân tích đặc trưng nào ảnh hưởng điểm; đo ablation trên video độc lập; đánh giá mức biến thiên giữa video. Chưa có bằng chứng phương pháp nâng cấp vượt bản cũ trên video thực — cần dùng công cụ thực nghiệm để kiểm chứng.
 
 Ứng dụng Python 3.13 chạy CPU, nhận video do người dùng tải lên. Mục tiêu: phát hiện chuyển cảnh, chọn khung đại diện và tạo highlight có thể giải thích, kiểm tra được bằng nhãn người.
+
+## Chế độ thể thao có pha bóng từ nhánh rally-highlight
+
+Truy cập **Rally phát sóng / video tổng quát** ở mục đích sử dụng, rồi chọn **Thể thao có pha bóng (pickleball, tennis…)** trong loại video. Chế độ này bổ sung từ nhánh `rally-highlight`; chế độ pickleball vùng sân và duyệt thủ công của local vẫn được giữ.
+
+Dành cho video phát sóng môn vợt (pickleball, tennis…). Highlight chỉ gồm **trọn pha bóng**, không cắt ngang:
+
+- Camera quay sân: gom khung theo bố cục màu thu nhỏ (16×9, Lab), nhóm có chuyển động thấp (Otsu trên log chuyển động) là camera cố định quay sân.
+- Pha bóng: khoảng lặng khi camera sân đang quay (khán giả im khi đánh, reo khi hết pha); ngưỡng lặng do Otsu chọn trên âm lượng của chính video. Mỗi pha thêm 1 giây trước (không lùi quá đầu cảnh sân) và 2 giây sau để có cú phát bóng và tiếng reo.
+- Điểm pha: trung bình thứ hạng độ dài pha và độ lớn tiếng reo trong 3 giây sau. Chọn pha điểm cao nhất vừa ngân sách thời lượng.
+- Ảnh cầu thủ (thử nghiệm): trừ nền MOG2 + gán nhãn thành phần liên thông, chân phải đứng trên màu mặt sân, bám cùng một người qua các khung; lúc "ra lực" = đổi dáng mạnh nhất (1 − IoU mặt nạ hai khung liên tiếp), lấy khung có phương sai Laplacian lớn nhất quanh đó.
+
+Giới hạn đã thấy trên một trận 67 phút, 480p: tách được 154 pha, kiểm bằng mắt các pha được chọn bắt đầu đúng lúc chuẩn bị phát bóng, nhưng chưa có nhãn người để đo độ chính xác. Ảnh cầu thủ chỉ khoảng 4/12 dùng được (còn lại dính hai người, chỉ được chân, dính bảng quảng cáo); muốn chọn đúng tư thế cần mô hình nhận người/tư thế. Phát bóng ăn điểm trực tiếp chưa nhận ra chắc chắn được (cần theo dõi bóng). Không áp dụng cho môn khán giả ồn suốt trận.
+
+## Chạy trên macOS
+
+```bash
+python3.13 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lock.txt
+.venv/bin/python -m streamlit run app.py --server.address 127.0.0.1
+```
 
 ## Chạy trên Windows
 
@@ -63,3 +92,6 @@ Chưa có kết quả thực nghiệm trên TVSum/SumMe; không điền điểm 
 .venv\Scripts\python smoke_test.py
 ```
 Kiểm thử synthetic xác nhận chức năng, không đánh giá chất lượng tóm tắt đối với người xem. File requirements-lock.txt ghi môi trường đã kiểm tra; dùng `pip install -r requirements-lock.txt` để tái lập.
+
+
+oh no, anh cần xem highlight pick thì phải là những đoạn tranh bóng ác liệt hấp dẫn, hoặc phát bóng ăn điểm trực tiếp. nó phải full cái đoạn đó chứ không phải cứ cắt 1-2s rồi chuyển cảnh đâu em, hiện tại anh xem thấy nó bị cắt ngay đoạn chuẩn bị phát bóng, chuyển cảnh liên tục chưa có gì gọi là highlight nó chỉ đang là rút ngắn video lại và không có ý nghĩa gì trong những đoạn rút ngắn

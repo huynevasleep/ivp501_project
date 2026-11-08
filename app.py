@@ -7,14 +7,14 @@ import logging
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from core import analyze, select, export_video, boundary_f1, summary_f1
+from core import analyze, select, export_video, best_shots, boundary_f1, summary_f1
 from experiments import compare
 from presentation import FEATURES, MODES, METHODS, timestamp, reason, segment_table, plain_report
 
 st.set_page_config(page_title='VideoLens • Video Analytics', page_icon='🎬', layout='wide')
 st.title('🎬 VideoLens')
 st.caption('Phân tích video • Khung hình chính • Highlight có giải thích')
-workflow=st.sidebar.radio('Mục đích sử dụng',['Highlight pickleball','Video tổng quát'],index=1 if 'result' in st.session_state else 0)
+workflow=st.sidebar.radio('Mục đích sử dụng',['Highlight pickleball','Rally phát sóng / video tổng quát'],index=1 if 'result' in st.session_state else 0)
 if workflow=='Highlight pickleball':
     from match_ui import render
     render()
@@ -41,6 +41,9 @@ if run:
         segments,scores=select(df,meta,ratio=ratio,mode=mode,diversity=diversity,optimizer=optimizer)
         bar.progress(1.,text='Đang ghép video và âm thanh…')
         video=export_video(source,segments,out)
+        if mode=='rally':
+            bar.progress(1.,text='Đang chọn ảnh cầu thủ lúc vung vợt…')
+            (out/'shots.json').write_text(json.dumps(best_shots(source,segments,out),ensure_ascii=False,indent=2),encoding='utf-8')
         report={'input_name':upload.name,'metadata':meta,'settings':dict(ratio=ratio,mode=mode,diversity=diversity,optimizer=optimizer),'segments':segments}
         (out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         st.session_state.result=(out,df,meta,segments,scores,video)
@@ -66,6 +69,17 @@ else:
     with preview:
         st.video(str(video))
         st.download_button('Tải highlight MP4',video.read_bytes(),'highlight.mp4','video/mp4')
+        shots=json.loads((out/'shots.json').read_text(encoding='utf-8')) if (out/'shots.json').exists() else []
+        if shots:
+            st.subheader('Ảnh cầu thủ lúc vung vợt (thử nghiệm)')
+            st.caption('Khung nét nhất quanh lúc dáng người thay đổi mạnh nhất, cắt từ khung gốc, không phóng to. Dùng trừ nền nên có thể cắt nhầm hai người dính nhau hoặc chỉ được một phần cơ thể; chưa có mô hình tư thế nên chưa chấm được tư thế đúng chuẩn.')
+            shot_cols=st.columns(4)
+            for i,c in enumerate(shots):
+                shot_cols[i%4].image(str(out/c['image']),caption=f"{timestamp(c['time'])} · cao {c['box'][3]} px")
+            shot_zip=io.BytesIO()
+            with zipfile.ZipFile(shot_zip,'w',zipfile.ZIP_DEFLATED) as z:
+                for c in shots: z.write(out/c['image'],c['image']); z.write(out/c['full_image'],c['full_image'])
+            st.download_button('Tải ảnh (ZIP)',shot_zip.getvalue(),'anh_cau_thu.zip')
         st.subheader('Xem nhanh các đoạn được giữ lại')
         st.caption('Mỗi ảnh đại diện cho một đoạn. Mốc thời gian bên dưới là vị trí trong video gốc.')
         cols=st.columns(4)

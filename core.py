@@ -15,6 +15,33 @@ def normalize(x):
     return np.clip((x-lo)/(hi-lo), 0, 1) if hi > lo else np.zeros_like(x)
 
 
+def otsu_threshold(values, weights=None, bins=256):
+    """1-D Otsu: threshold maximizing between-class variance of a bimodal distribution."""
+    values = np.asarray(values, dtype=float); keep = np.isfinite(values)
+    values = values[keep]
+    weights = np.ones_like(values) if weights is None else np.asarray(weights, dtype=float)[keep]
+    if len(values) == 0: raise ValueError('Không có giá trị để chọn ngưỡng.')
+    if values.min() == values.max(): return float(values[0])
+    hist, edges = np.histogram(values, bins, weights=weights); mids = (edges[:-1]+edges[1:])/2
+    w0 = np.cumsum(hist); w1 = w0[-1]-w0; s0 = np.cumsum(hist*mids)
+    m0 = s0/np.maximum(w0, 1e-12); m1 = (s0[-1]-s0)/np.maximum(w1, 1e-12)
+    return float(edges[1:][np.argmax(w0*w1*(m0-m1)**2)])
+
+
+def audio_loudness(path, times, window):
+    """RMS loudness (dB full scale) of the mono soundtrack around each time; NaN when no audio."""
+    sr = 8000
+    raw = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-v', 'error', '-i', str(path), '-vn', '-ac', '1', '-ar', str(sr), '-f', 's16le', '-'], capture_output=True).stdout
+    signal = np.frombuffer(raw, np.int16).astype(np.float64)/32768
+    if len(signal) < sr//10: return np.full(len(times), np.nan)
+    energy = np.concatenate([[0.], np.cumsum(signal**2)])
+    half = window/2; out = []
+    for t in times:
+        a = int(np.clip((t-half)*sr, 0, len(signal)-1)); b = int(np.clip((t+half)*sr, a+1, len(signal)))
+        out.append(10*np.log10((energy[b]-energy[a])/(b-a)+1e-12))
+    return np.array(out)
+
+
 def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
     if not np.isfinite(sample_fps) or sample_fps <= 0:
         raise ValueError('Tốc độ lấy mẫu phải dương và hữu hạn.')
@@ -25,14 +52,16 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
         cap.release(); raise ValueError('Không đọc được video. Hãy dùng MP4/H.264 hợp lệ.')
     step = max(1, round(fps/sample_fps))
     face = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml')
-    rows, histograms = [], []
+    rows, histograms, layouts = [], [], []
     prev = ph = None
     i = 0
     try:
         while True:
-            ok, frame = cap.read()
-            if not ok: break
+            # grab() advances without converting the frame; retrieve() only the sampled ones.
+            if not cap.grab(): break
             if i % step == 0:
+                ok, frame = cap.retrieve()
+                if not ok: break
                 frame = cv2.resize(frame, (320, 180))
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -50,6 +79,8 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
                 cv2.imwrite(str(out/thumb), frame)
                 rows.append(dict(time=i/fps, color=change, difference=diff, motion=motion, faces=faces, sharpness=sharp, image=thumb))
                 histograms.append(h); prev, ph = gray, h
+                # Coarse colour layout: frames from the same fixed camera look alike.
+                layouts.append(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2LAB), (16, 9), interpolation=cv2.INTER_AREA).astype(np.float32).ravel())
                 if progress: progress(min(i/count, .99))
             i += 1
     finally:
@@ -66,6 +97,8 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
             cuts.append(t); last = t
     duration = i/fps
     df['cluster'] = KMeans(n_clusters=min(8, len(df), len(np.unique(histograms, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(histograms))
+    df['camera'] = KMeans(n_clusters=min(12, len(df), len(np.unique(layouts, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(layouts))
+    df['loudness_db'] = audio_loudness(path, df.time.to_numpy(), step/fps)
     for col in ['motion', 'faces', 'sharpness', 'color', 'difference']:
         df[col+'_norm'] = normalize(df[col])
     meta = dict(duration=duration, fps=fps, frames=i, sample_fps=fps/step, cuts=cuts, threshold=threshold)
@@ -74,13 +107,83 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
     return df, meta
 
 
+def _runs(mask):
+    """[(start, end)) index pairs of consecutive True values."""
+    edges = np.diff(np.concatenate([[0], mask.astype(int), [0]]))
+    return list(zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)))
+
+
+def _rank(x):
+    """Percentile rank in (0, 1]; ties share the higher rank."""
+    x = np.nan_to_num(np.asarray(x, dtype=float), nan=-np.inf)
+    return np.searchsorted(np.sort(x), x, side='right')/len(x)
+
+
+def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
+    """Rallies of a broadcast racket-sport match, as whole intervals that are never cut.
+
+    A rally is a quiet stretch while a fixed court camera is on screen: fixed cameras are the
+    colour-layout clusters on the low side of an Otsu split of log median motion, and "quiet" is
+    the low side of an Otsu split of loudness (crowds hush during play, cheer after the point).
+    Interval = [first quiet sample - pre, last quiet sample + post), so the serve and the
+    reaction are inside; the pre-roll never reaches back past the start of the court shot. Score = mean percentile rank of rally length and of the loudest
+    moment within `reaction` seconds after it.
+    """
+    if df.empty or 'camera' not in df or 'loudness_db' not in df:
+        raise ValueError('Thiếu đặc trưng camera/âm thanh: hãy phân tích lại video.')
+    step = 1/meta['sample_fps']; t = df.time.to_numpy(); duration = meta['duration']
+    stats = df.groupby('camera').motion.agg(['median', 'size'])
+    # Motion differs by ratio (hand-held ~10x a fixed camera), so split on the log scale.
+    log_motion = np.log(stats['median'].to_numpy()+1e-3)
+    fixed = stats.index[log_motion <= otsu_threshold(log_motion, stats['size'])]
+    court = df.camera.isin(fixed).to_numpy()
+    loud = df.loudness_db.to_numpy()
+    quiet = np.ones(len(df), bool) if np.isnan(loud).all() else loud < otsu_threshold(loud)
+    play = court & quiet
+    # Bridge short gaps (a camera switch or a shout mid-rally) between two quiet stretches.
+    hole = int(round(gap/step))
+    for a, b in _runs(~play):
+        if 0 < a and b < len(play) and b-a <= hole: play[a:b] = True
+    cores = [(a, b) for a, b in _runs(play) if (b-a)*step >= min_len]
+    if not cores: return []
+    rallies = []
+    for a, b in cores:
+        after = (t >= t[b-1]+step) & (t < t[b-1]+step+reaction)
+        mid = (a+b)//2
+        lead = a                              # pre-roll stays on the court camera: no flash of the close-up before
+        while lead > 0 and court[lead-1]: lead -= 1
+        rallies.append(dict(core_start=float(t[a]), core_end=float(t[b-1]+step), court_start=float(t[lead]),
+                            cheer_db=float(np.nanmax(loud[after])) if after.any() and not np.isnan(loud[after]).all() else np.nan,
+                            cluster=int(df.camera.iloc[mid]), keyframe=str(df.image.iloc[mid])))
+    for r, prev in zip(rallies[1:], rallies[:-1]):
+        r['start'] = max(r['core_start']-pre, r['court_start']); prev['end'] = min(prev['core_end']+post, duration)
+        if prev['end'] > r['start']:            # padding overlaps: split at the middle of the pause
+            prev['end'] = r['start'] = (prev['core_end']+r['core_start'])/2
+    rallies[0]['start'] = max(rallies[0]['core_start']-pre, rallies[0]['court_start'])
+    rallies[-1]['end'] = min(rallies[-1]['core_end']+post, duration)
+    length = _rank([r['core_end']-r['core_start'] for r in rallies]); cheer = _rank([r['cheer_db'] for r in rallies])
+    for r, l, c in zip(rallies, length, cheer):
+        r['score'] = float((l+c)/2)
+        r['contributions'] = {'rally_length': float(l/2), 'crowd_reaction': float(c/2)}
+    return rallies
+
+
 def select(df, meta, ratio=.15, mode='balanced', diversity=True, optimizer='greedy'):
     if not 0 < ratio <= 1: raise ValueError('ratio phải thuộc (0, 1].')
+    if optimizer not in ('greedy','knapsack'): raise ValueError('Thuật toán chọn đoạn không hợp lệ.')
+    if df.empty: raise ValueError('Không có đặc trưng để chọn đoạn.')
+    if mode == 'rally':
+        rallies = detect_rallies(df, meta); budget = meta['duration']*ratio
+        score = np.zeros(len(df))
+        for r in rallies: score[(df.time >= r['start']).to_numpy() & (df.time < r['end']).to_numpy()] = r['score']
+        if optimizer == 'knapsack': return knapsack_select(rallies, budget), score
+        chosen, remaining = [], budget       # best rallies first; a rally is kept whole or not at all
+        for r in sorted(rallies, key=lambda r: -r['score']):
+            if r['end']-r['start'] <= remaining+1e-8: chosen.append(r); remaining -= r['end']-r['start']
+        return sorted(chosen, key=lambda s: s['start']), score
     weights = {'balanced': [.25,.15,.2,.25,.15], 'sports': [.55,.05,.1,.2,.1], 'lecture': [.1,.3,.25,.2,.15], 'motion': [1,0,0,0,0], 'no_motion': [0,.2,.25,.35,.2]}
     weights['uniform'] = [0,0,0,0,0]
     if mode not in weights: raise ValueError('Chế độ chọn đoạn không hợp lệ.')
-    if optimizer not in ('greedy','knapsack'): raise ValueError('Thuật toán chọn đoạn không hợp lệ.')
-    if df.empty: raise ValueError('Không có đặc trưng để chọn đoạn.')
     cols = ['motion_norm','faces_norm','sharpness_norm','color_norm','difference_norm']
     score = df[cols].to_numpy() @ np.array(weights[mode])
     budget = meta['duration']*ratio
@@ -163,6 +266,119 @@ def export_video(source, segments, out):
     subprocess.run([exe,'-y','-f','concat','-safe','0','-i',str(listing),'-c','copy','-movflags','+faststart',str(target)],check=True,capture_output=True)
     for p in clips: p.unlink()
     return target
+
+
+def _floor_mask(frame, cover=.8, lower=.4):
+    """Pixels whose hue/saturation is among the colours covering `cover` of the lower part of the frame.
+
+    On a court broadcast the lower part is mostly playing surface, so this marks the floor
+    (court + surround) and excludes stands, crowd and boards.
+    """
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    bins = (hsv[..., 0]//10).astype(np.int32)*8+hsv[..., 1]//32          # 18 hue x 8 saturation bins
+    counts = np.bincount(bins[int(frame.shape[0]*(1-lower)):].ravel(), minlength=144)
+    order = np.argsort(-counts); keep = order[:np.searchsorted(np.cumsum(counts[order]), cover*counts.sum())+1]
+    mask = np.isin(bins, keep).astype(np.uint8)
+    return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8)).astype(bool)
+
+
+def _overlap(a, b):
+    """Intersection over union of two (x, y, w, h) boxes."""
+    x0, y0 = max(a[0], b[0]), max(a[1], b[1]); x1, y1 = min(a[0]+a[2], b[0]+b[2]), min(a[1]+a[3], b[1]+b[3])
+    inter = max(0, x1-x0)*max(0, y1-y0)
+    return inter/(a[2]*a[3]+b[2]*b[3]-inter) if inter else 0.
+
+
+def best_shots(source, segments, out, max_shots=12, min_height=.12, margin=.3, swings=3):
+    """Sharpest frame of a player at the peak of a swing, one per segment, from full-resolution frames.
+
+    Fixed court camera → background subtraction (MOG2) isolates moving players; the
+    foreground is eroded (splits players standing close) and labelled; components taller than
+    `min_height` × frame height, taller than wide and standing on the floor (`_floor_mask` under
+    the feet) are kept, the tallest (nearest, so largest in the photo) per frame. Swing = local
+    peak of silhouette change (1 - IoU of consecutive player masks); the `swings` strongest peaks
+    of each segment are kept, and around each (±3 frames) the frame with the largest Laplacian
+    variance in the box is the candidate. Candidates are ranked by box height, swing energy and
+    sharpness (mean percentile rank). No pose model: "power" means "largest shape change", not
+    a judged posture.
+    """
+    from scipy.signal import find_peaks
+    out = Path(out); out.mkdir(parents=True, exist_ok=True)
+    cap = cv2.VideoCapture(str(source)); fps = cap.get(cv2.CAP_PROP_FPS)
+    if not cap.isOpened() or fps <= 0: raise ValueError('Không đọc được video gốc.')
+    candidates = []
+    try:
+        for k, s in enumerate(segments):
+            first = int(round(s['start']*fps)); cap.set(cv2.CAP_PROP_POS_FRAMES, first)
+            mog = cv2.createBackgroundSubtractorMOG2(history=int(fps*2), detectShadows=False)
+            prev = prev_mask = prev_box = None; track = []; floor = None
+            for j in range(int((s['end']-s['start'])*fps)):
+                ok, frame = cap.read()
+                if not ok: break
+                H, W = frame.shape[:2]
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                fg = mog.apply(frame)
+                if floor is None: floor = _floor_mask(frame)
+                fg = cv2.morphologyEx(cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+                box = None
+                if j >= fps/2:                    # let the background model settle first
+                    n, labels, st, _ = cv2.connectedComponentsWithStats(cv2.erode(fg, np.ones((5, 5), np.uint8)))
+                    def on_floor(b):
+                        feet = floor[min(b[1]+b[3], H-1):min(b[1]+b[3]+6, H), b[0]+b[2]//4:b[0]+3*b[2]//4+1]
+                        return feet.size > 0 and feet.mean() > .5
+                    people = [c for c in range(1, n) if st[c, 3] >= min_height*H and st[c, 3] >= st[c, 2] and on_floor(st[c])
+              and st[c, 0] > 0 and st[c, 1] > 0 and st[c, 0]+st[c, 2] < W]   # cut by the frame edge: no photo
+                    if people:
+                        # Follow the same player: the component overlapping the previous box most;
+                        # otherwise start a new track on the tallest (energy is not measured on a switch).
+                        overlap = {c: _overlap(st[c, :4], prev_box) for c in people} if prev_box else {}
+                        same = max(overlap, key=overlap.get) if overlap and max(overlap.values()) > 0 else None
+                        c = same if same is not None else max(people, key=lambda c: st[c, 3])
+                        box = st[c, :4]; mask = labels == c
+                        if same is None: prev_mask = None
+                if box is not None and prev_mask is not None:
+                    x, y, w, h = map(int, box)
+                    # Silhouette change = 1 - IoU of this and the previous player mask over both boxes:
+                    # a lunge or an arm swinging out changes the shape; texture and fast moves do not
+                    # fool it the way pixel difference or small-window optical flow do.
+                    px, py, pw, ph = prev_box
+                    a0, b0 = min(x, px), min(y, py); a1, b1 = max(x+w, px+pw), max(y+h, py+ph)
+                    now, before = mask[b0:b1, a0:a1], prev_mask[b0:b1, a0:a1]
+                    shared = (now & before).sum()
+                    # No shared pixel: the boxes touched but it is another player, not a movement.
+                    energy = float(1-shared/max((now | before).sum(), 1)) if shared else None
+                    sharp = float(cv2.Laplacian(gray[y:y+h, x:x+w], cv2.CV_64F).var())
+                    if energy is not None: track.append((j, energy, sharp, (x, y, w, h)))
+                prev = gray
+                prev_mask, prev_box = (mask, tuple(map(int, box))) if box is not None else (None, None)
+            if len(track) < 3: continue
+            energies = np.array([e for _, e, _, _ in track])
+            peaks, _ = find_peaks(energies, distance=max(1, int(fps/2)))
+            for p in sorted(peaks, key=lambda p: -energies[p])[:swings]:   # the hardest swings of the rally
+                window = track[max(p-3, 0):p+4]
+                j, e, sh, box = max(window, key=lambda c: c[2])
+                candidates.append(dict(segment=k, frame=first+j, time=(first+j)/fps, energy=energies[p], sharpness=sh, height=box[3], box=box))
+        if not candidates: return []
+        rank = (_rank([c['height'] for c in candidates])+_rank([c['energy'] for c in candidates])+_rank([c['sharpness'] for c in candidates]))/3
+        for c, r in zip(candidates, rank): c['score'] = float(r)
+        best = {}
+        for c in candidates:                       # one photo per segment, best-scoring
+            if c['segment'] not in best or c['score'] > best[c['segment']]['score']: best[c['segment']] = c
+        shots = sorted(best.values(), key=lambda c: -c['score'])[:max_shots]
+        for i, c in enumerate(sorted(shots, key=lambda c: c['time'])):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, c['frame'])
+            ok, frame = cap.read()
+            if not ok: continue
+            H, W = frame.shape[:2]; x, y, w, h = c['box']
+            mx, my = int(w*margin), int(h*margin)
+            crop = frame[max(y-my, 0):min(y+h+my, H), max(x-mx, 0):min(x+w+mx, W)]
+            c['image'] = f'shot_{i:02d}.jpg'; c['full_image'] = f'shot_{i:02d}_full.jpg'
+            cv2.imwrite(str(out/c['image']), crop, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            cv2.imwrite(str(out/c['full_image']), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            c['box'] = [int(v) for v in c['box']]
+    finally:
+        cap.release()
+    return [c for c in sorted(shots, key=lambda c: c['time']) if 'image' in c]
 
 
 def boundary_f1(pred, truth, tolerance=.5):
