@@ -45,7 +45,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <main>
 <!-- Sinh từ tach-pha-bong.md bằng reports/build_html.py; sửa file .md rồi chạy lại, đừng sửa tay file này. -->
 <h1 id="highlight-pha-bong-thuat-toan-cac-buoc-xu-ly-va-tinh-trang-theo-muc-tieu">Highlight pha bóng: thuật toán, các bước xử lý và tình trạng theo mục tiêu</h1>
-<p><em>anhnhc · cập nhật 08/11/2026 · nhánh <code>rally-highlight</code> · code ở <code>core.py</code></em></p>
+<p><em>anhnhc · cập nhật 09/11/2026 · nhánh <code>rally-highlight</code> · code ở <code>core.py</code></em></p>
 <nav><strong>Mục lục</strong><ol>
 <li><a href="#1-muc-tieu-e-tai">1. Mục tiêu đề tài</a></li>
 <li><a href="#2-tinh-trang">2. Tình trạng</a></li>
@@ -111,6 +111,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><strong>Tiếp tục:</strong> mỗi lần quỹ đạo bóng đổi hướng đột ngột cạnh một cầu thủ là một cú chạm vợt.</li>
 <li><strong>Kết thúc pha:</strong> bóng chạm sàn mà sau đó không có cú chạm vợt nào, hoặc bóng ra ngoài sân, hoặc vào lưới.</li>
 </ul>
+<p><strong>Chuyển góc máy không phải là kết thúc pha.</strong> Đài phát trực tiếp thường đổi góc giữa pha (trên trận thử: 61/154 pha có đổi giữa các camera sân, tổng 87 lần; phút 10:55 đài chen một góc cận cầu thủ đang đánh rồi quay lại sân). Cắt cảnh chỉ dùng để đặt lại bộ bám bóng và biết đoạn nào là camera sân; một pha chỉ đóng khi có bằng chứng bóng đã chết (bóng nảy hai lần hoặc ra ngoài, bảng điểm đổi số hoặc đổi chấm giao bóng). Bản nền hiện tại (mục 3.2) vẫn tách sai pha ở 10:55 vì dựa vào camera sân; xem việc V5, V7.</p>
 <h3 id="32-ban-nen-ang-chay-gian-tiep-khong-nhan-bong">3.2 Bản nền đang chạy (gián tiếp, không nhận bóng)</h3>
 <p><strong>Vì sao cần.</strong> Cách cũ chia video theo "chuyển cảnh" (độ lệch histogram HSV + sai khác khung) và chấm điểm từng mẩu ≤ 4 giây. Trên trận 67 phút nó báo <strong>1 243</strong> lần chuyển cảnh và cho highlight <strong>519</strong> đoạn dài trung vị <strong>1,0 s</strong>, cắt ngang cả lúc chuẩn bị phát bóng. Người chạy, bóng bay làm histogram đổi nên bị tưởng là chuyển cảnh.</p>
 <p><strong>Ý tưởng.</strong> Trên sóng truyền hình, một pha bóng có hai dấu hiệu cùng lúc:</p>
@@ -122,14 +123,20 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <p><strong>Các bước</strong> (<code>analyze</code>, <code>audio_loudness</code>, <code>detect_rallies</code>):</p>
 <ol>
 <li><strong>Lấy mẫu</strong> 2 khung/giây (<code>grab()</code> bỏ qua khung không cần, <code>retrieve()</code> khung lấy mẫu); thu về 320×180. Trận này: 8 022 khung mẫu, phân tích 107 s trên CPU.</li>
-<li><strong>Đặc trưng hình mỗi khung:</strong> bố cục màu = ảnh <strong>Lab</strong> thu về <strong>16×9</strong> (<code>INTER_AREA</code>), duỗi thành vector 432 số; chuyển động = trung bình độ lớn <strong>optical flow Farneback</strong> giữa hai khung mẫu liền nhau (px). Lab vì khoảng cách gần với cảm nhận màu của mắt; 16×9 để giữ bố cục lớn và bỏ chi tiết người chạy.</li>
+<li><strong>Đặc trưng hình mỗi khung:</strong> bố cục màu = ảnh <strong>Lab</strong> thu về <strong>16×9</strong> (<code>INTER_AREA</code>), duỗi thành vector 432 số; <strong>bản đồ biên Canny</strong> (lọc Gauss 3×3 trước, ngưỡng 50/150) của khung 320×180, nén bit (khoảng 7 KB mỗi khung, giữ trong bộ nhớ, không ghi ra đĩa). Lab vì khoảng cách gần với cảm nhận màu của mắt; 16×9 để giữ bố cục lớn và bỏ chi tiết người chạy.</li>
 <li><strong>Âm lượng:</strong> tách âm thanh bằng ffmpeg (mono, 8 kHz), tính <strong>RMS trong cửa sổ 0,5 s</strong> quanh mỗi khung mẫu, đổi sang dBFS.</li>
 <li><strong>Gom cụm góc camera:</strong> <strong>K-means 12 cụm</strong> trên vector bố cục màu (<code>random_state=42</code>).</li>
 </ol>
 <p><img alt="Khung mẫu của 12 cụm camera" src="img/cum_camera.jpg" loading="lazy"></p>
 <ol start="5">
-<li><strong>Tìm camera sân:</strong> lấy trung vị chuyển động của mỗi cụm, chạy <strong>Otsu trên log</strong> của nó (trọng số = số khung). Ngưỡng ≈ 0,54 px/khung: 3 cụm sân có trung vị 0,44–0,54, chín cụm còn lại 2,7–6,9. Phải dùng thang log vì chuyển động khác nhau theo tỉ lệ; trên thang thường ngưỡng rơi vào 2,75 và cụm phỏng vấn (2,74) bị xếp nhầm vào "sân". Kết quả: 4 526 khung mẫu (37,8 phút) thuộc camera sân. Trong đó <strong>cụm 1 là góc ngang</strong> (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.</li>
+<li><strong>Tìm camera sân bằng đường biên</strong> (<code>court_cameras</code>). Camera sân đặt cố định nên vạch sân, mép lưới, mép bảng quảng cáo nằm đúng ở cùng điểm ảnh suốt trận.
+   - <strong>Khuôn biên của mỗi cụm</strong> = điểm ảnh là biên ở ít nhất một nửa số khung của cụm (trung vị bản đồ biên).
+   - <strong>Độ khớp của một khung với một khuôn</strong> = hệ số Dice của hai chiều: <em>recall</em> (biên của khuôn có mặt trong khung, cho lệch 1 pixel) và <em>precision</em> (biên của khung nằm trên khuôn). Chiều precision giữ cảnh đám đông, flycam (biên rất dày, phủ kín mọi khuôn) ở mức thấp.
+   - <strong>Cụm máy cố định</strong> = phía cao khi chạy Otsu trên log trung vị độ khớp với khuôn của chính cụm (trọng số = số khung). <strong>Cụm camera sân</strong> = cụm cố định mà khuôn có đường thẳng <strong>Hough</strong> (vạch sân, lưới).
+   - <strong>Mỗi khung</strong> được chấm bằng độ khớp cao nhất với các khuôn camera sân; khung sân là khung vượt ngưỡng Otsu của điểm này. Nhờ vậy khung sân lỡ rơi vào cụm khác vẫn được nhận.</li>
 </ol>
+<p>Trên trận thử: 3 cụm sân khớp khuôn của chính mình 0,89–0,92, khuôn có 7 500–7 800 điểm biên và 5–14 đường Hough; 9 cụm còn lại khớp ≤ 0,13, khuôn gần như trống. Khung sân có điểm 0,88 (p10) – 0,92 (trung vị); khung khác trung vị 0,42, p99 0,61; ngưỡng Otsu 0,66. Kết quả 37,5 phút camera sân. Trong đó <strong>cụm 1 là góc ngang</strong> (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.</p>
+<p>Hai cách đã thử và bỏ: đếm vạch trắng thẳng bằng HoughLinesP (nhận nhầm áo trắng, băng rôn, chữ; sót camera góc ngang vì vạch quá mảnh ở 320×180), và diện tích, độ đầy của mặt sân xanh (áo, băng rôn xanh lẫn vào). Bản trước dùng chuyển động optical flow trung vị của cụm (hình dưới); kết quả gần như trùng (153 so với 154 pha) nhưng nay không còn cần optical flow để nhận sân.</p>
 <p><img alt="Chuyển động trung vị theo cụm" src="img/chuyen_dong_cum.png" loading="lazy"></p>
 <ol start="6">
 <li><strong>Tìm lúc khán giả im:</strong> <strong>Otsu</strong> trên âm lượng cả trận cho ngưỡng <strong>−26,3 dBFS</strong>. Trung vị: camera sân lúc im −30,4 dB; camera sân lúc ồn −21,8 dB; các cảnh khác −21,1 dB.</li>
@@ -330,6 +337,14 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <td>Bộ ảnh trước và sau xử lý của cùng các khung, kèm thông số bộ lọc đã dùng</td>
 <td>Mục 5</td>
 <td></td>
+</tr>
+<tr>
+<td>V7</td>
+<td>Đọc bảng điểm (số điểm, chấm giao bóng) bằng so khớp mẫu chữ số làm mốc kết thúc pha, thay cho tiếng reo</td>
+<td>1, 2</td>
+<td>Có chuỗi điểm số theo thời gian; số lần đổi điểm gần bằng số pha thật (đếm tay trên một đoạn) và không lần nào rơi giữa pha</td>
+<td>Mục 3.1, 3.3</td>
+<td>anhnhc</td>
 </tr>
 </tbody>
 </table></div>

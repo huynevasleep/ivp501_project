@@ -1,6 +1,6 @@
 # Highlight pha bóng: thuật toán, các bước xử lý và tình trạng theo mục tiêu
 
-*anhnhc · cập nhật 08/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
+*anhnhc · cập nhật 09/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
 
 **Bổ sung sau merge local:** xem [đối chiếu ba mục tiêu](../project-audit.md) về công cụ quỹ đạo ứng viên, sự kiện xác nhận, ghép toàn bộ pha và xử lý ảnh. Các số liệu trong báo cáo này vẫn là kết quả của nhánh tác giả; công cụ mới chưa được đo trên trận có nhãn nên không thay thế các kết luận dưới đây.
 
@@ -34,6 +34,8 @@ Pickleball có **luật hai lần nảy**: cú giao bóng và cú trả giao ph�
 - **Tiếp tục:** mỗi lần quỹ đạo bóng đổi hướng đột ngột cạnh một cầu thủ là một cú chạm vợt.
 - **Kết thúc pha:** bóng chạm sàn mà sau đó không có cú chạm vợt nào, hoặc bóng ra ngoài sân, hoặc vào lưới.
 
+**Chuyển góc máy không phải là kết thúc pha.** Đài phát trực tiếp thường đổi góc giữa pha (trên trận thử: 61/154 pha có đổi giữa các camera sân, tổng 87 lần; phút 10:55 đài chen một góc cận cầu thủ đang đánh rồi quay lại sân). Cắt cảnh chỉ dùng để đặt lại bộ bám bóng và biết đoạn nào là camera sân; một pha chỉ đóng khi có bằng chứng bóng đã chết (bóng nảy hai lần hoặc ra ngoài, bảng điểm đổi số hoặc đổi chấm giao bóng). Bản nền hiện tại (mục 3.2) vẫn tách sai pha ở 10:55 vì dựa vào camera sân; xem việc V5, V7.
+
 ### 3.2 Bản nền đang chạy (gián tiếp, không nhận bóng)
 
 **Vì sao cần.** Cách cũ chia video theo "chuyển cảnh" (độ lệch histogram HSV + sai khác khung) và chấm điểm từng mẩu ≤ 4 giây. Trên trận 67 phút nó báo **1 243** lần chuyển cảnh và cho highlight **519** đoạn dài trung vị **1,0 s**, cắt ngang cả lúc chuẩn bị phát bóng. Người chạy, bóng bay làm histogram đổi nên bị tưởng là chuyển cảnh.
@@ -48,13 +50,21 @@ Pha bóng = **camera sân đang lên hình VÀ khán giả đang im**. Hai ngư�
 **Các bước** (`analyze`, `audio_loudness`, `detect_rallies`):
 
 1. **Lấy mẫu** 2 khung/giây (`grab()` bỏ qua khung không cần, `retrieve()` khung lấy mẫu); thu về 320×180. Trận này: 8 022 khung mẫu, phân tích 107 s trên CPU.
-2. **Đặc trưng hình mỗi khung:** bố cục màu = ảnh **Lab** thu về **16×9** (`INTER_AREA`), duỗi thành vector 432 số; chuyển động = trung bình độ lớn **optical flow Farneback** giữa hai khung mẫu liền nhau (px). Lab vì khoảng cách gần với cảm nhận màu của mắt; 16×9 để giữ bố cục lớn và bỏ chi tiết người chạy.
+2. **Đặc trưng hình mỗi khung:** bố cục màu = ảnh **Lab** thu về **16×9** (`INTER_AREA`), duỗi thành vector 432 số; **bản đồ biên Canny** (lọc Gauss 3×3 trước, ngưỡng 50/150) của khung 320×180, nén bit (khoảng 7 KB mỗi khung, giữ trong bộ nhớ, không ghi ra đĩa). Lab vì khoảng cách gần với cảm nhận màu của mắt; 16×9 để giữ bố cục lớn và bỏ chi tiết người chạy.
 3. **Âm lượng:** tách âm thanh bằng ffmpeg (mono, 8 kHz), tính **RMS trong cửa sổ 0,5 s** quanh mỗi khung mẫu, đổi sang dBFS.
 4. **Gom cụm góc camera:** **K-means 12 cụm** trên vector bố cục màu (`random_state=42`).
 
    ![Khung mẫu của 12 cụm camera](img/cum_camera.jpg)
 
-5. **Tìm camera sân:** lấy trung vị chuyển động của mỗi cụm, chạy **Otsu trên log** của nó (trọng số = số khung). Ngưỡng ≈ 0,54 px/khung: 3 cụm sân có trung vị 0,44–0,54, chín cụm còn lại 2,7–6,9. Phải dùng thang log vì chuyển động khác nhau theo tỉ lệ; trên thang thường ngưỡng rơi vào 2,75 và cụm phỏng vấn (2,74) bị xếp nhầm vào "sân". Kết quả: 4 526 khung mẫu (37,8 phút) thuộc camera sân. Trong đó **cụm 1 là góc ngang** (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.
+5. **Tìm camera sân bằng đường biên** (`court_cameras`). Camera sân đặt cố định nên vạch sân, mép lưới, mép bảng quảng cáo nằm đúng ở cùng điểm ảnh suốt trận.
+   - **Khuôn biên của mỗi cụm** = điểm ảnh là biên ở ít nhất một nửa số khung của cụm (trung vị bản đồ biên).
+   - **Độ khớp của một khung với một khuôn** = hệ số Dice của hai chiều: *recall* (biên của khuôn có mặt trong khung, cho lệch 1 pixel) và *precision* (biên của khung nằm trên khuôn). Chiều precision giữ cảnh đám đông, flycam (biên rất dày, phủ kín mọi khuôn) ở mức thấp.
+   - **Cụm máy cố định** = phía cao khi chạy Otsu trên log trung vị độ khớp với khuôn của chính cụm (trọng số = số khung). **Cụm camera sân** = cụm cố định mà khuôn có đường thẳng **Hough** (vạch sân, lưới).
+   - **Mỗi khung** được chấm bằng độ khớp cao nhất với các khuôn camera sân; khung sân là khung vượt ngưỡng Otsu của điểm này. Nhờ vậy khung sân lỡ rơi vào cụm khác vẫn được nhận.
+
+   Trên trận thử: 3 cụm sân khớp khuôn của chính mình 0,89–0,92, khuôn có 7 500–7 800 điểm biên và 5–14 đường Hough; 9 cụm còn lại khớp ≤ 0,13, khuôn gần như trống. Khung sân có điểm 0,88 (p10) – 0,92 (trung vị); khung khác trung vị 0,42, p99 0,61; ngưỡng Otsu 0,66. Kết quả 37,5 phút camera sân. Trong đó **cụm 1 là góc ngang** (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.
+
+   Hai cách đã thử và bỏ: đếm vạch trắng thẳng bằng HoughLinesP (nhận nhầm áo trắng, băng rôn, chữ; sót camera góc ngang vì vạch quá mảnh ở 320×180), và diện tích, độ đầy của mặt sân xanh (áo, băng rôn xanh lẫn vào). Bản trước dùng chuyển động optical flow trung vị của cụm (hình dưới); kết quả gần như trùng (153 so với 154 pha) nhưng nay không còn cần optical flow để nhận sân.
 
    ![Chuyển động trung vị theo cụm](img/chuyen_dong_cum.png)
 
@@ -176,6 +186,7 @@ Cách nhận: ghi tên mình và ngày vào cột "Người nhận" trong bảng
 | V4 | Nhận cú chạm vợt và lúc bóng chạm sàn từ quỹ đạo (cần V3) | 1 | Có timecode từng cú chạm, so với đếm tay trên các pha thử | Mục 3.3; khi ổn thì thay timecode ở mục 4 | |
 | V5 | Giữ cảnh sân quay bằng camera lia (đang bị loại, xem giới hạn mục 3.2) | 1 | Các pha có đoạn camera lia không còn bị mất hoặc cắt đôi; so số pha trước và sau | Mục 3.2 | |
 | V6 | Ảnh góc ngang: chỉ lấy camera góc ngang, tăng nét, giảm mờ theo mục 5.2 | 3 | Bộ ảnh trước và sau xử lý của cùng các khung, kèm thông số bộ lọc đã dùng | Mục 5 | |
+| V7 | Đọc bảng điểm (số điểm, chấm giao bóng) bằng so khớp mẫu chữ số làm mốc kết thúc pha, thay cho tiếng reo | 1, 2 | Có chuỗi điểm số theo thời gian; số lần đổi điểm gần bằng số pha thật (đếm tay trên một đoạn) và không lần nào rơi giữa pha | Mục 3.1, 3.3 | anhnhc |
 
 ## 8. Sinh lại bản HTML
 
