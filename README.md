@@ -16,6 +16,25 @@ Manifest chứa tỷ lệ và danh sách đường dẫn video/labels (tương �
 
 Ứng dụng Python 3.13 chạy CPU, nhận video do người dùng tải lên. Mục tiêu: phát hiện chuyển cảnh, chọn khung đại diện và tạo highlight có thể giải thích, kiểm tra được bằng nhãn người.
 
+## Chế độ thể thao có pha bóng (mặc định)
+
+Dành cho video phát sóng môn vợt (pickleball, tennis…). Highlight chỉ gồm **trọn pha bóng**, không cắt ngang:
+
+- Camera quay sân: gom khung theo bố cục màu thu nhỏ (16×9, Lab), nhóm có chuyển động thấp (Otsu trên log chuyển động) là camera cố định quay sân.
+- Pha bóng: khoảng lặng khi camera sân đang quay (khán giả im khi đánh, reo khi hết pha); ngưỡng lặng do Otsu chọn trên âm lượng của chính video. Mỗi pha thêm 1 giây trước (không lùi quá đầu cảnh sân) và 2 giây sau để có cú phát bóng và tiếng reo.
+- Điểm pha: trung bình thứ hạng độ dài pha và độ lớn tiếng reo trong 3 giây sau. Chọn pha điểm cao nhất vừa ngân sách thời lượng.
+- Ảnh cầu thủ (thử nghiệm): trừ nền MOG2 + gán nhãn thành phần liên thông, chân phải đứng trên màu mặt sân, bám cùng một người qua các khung; lúc "ra lực" = đổi dáng mạnh nhất (1 − IoU mặt nạ hai khung liên tiếp), lấy khung có phương sai Laplacian lớn nhất quanh đó.
+
+Giới hạn đã thấy trên một trận 67 phút, 480p: tách được 154 pha, kiểm bằng mắt các pha được chọn bắt đầu đúng lúc chuẩn bị phát bóng, nhưng chưa có nhãn người để đo độ chính xác. Ảnh cầu thủ chỉ khoảng 4/12 dùng được (còn lại dính hai người, chỉ được chân, dính bảng quảng cáo); muốn chọn đúng tư thế cần mô hình nhận người/tư thế. Phát bóng ăn điểm trực tiếp chưa nhận ra chắc chắn được (cần theo dõi bóng). Không áp dụng cho môn khán giả ồn suốt trận.
+
+## Chạy trên macOS
+
+```bash
+python3.13 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lock.txt
+.venv/bin/python -m streamlit run app.py --server.address 127.0.0.1
+```
+
 ## Chạy trên Windows
 
 Mở PowerShell tại thư mục dự án:
@@ -61,3 +80,6 @@ Chưa có kết quả thực nghiệm trên TVSum/SumMe; không điền điểm 
 .venv\Scripts\python smoke_test.py
 ```
 Kiểm thử synthetic xác nhận chức năng, không đánh giá chất lượng tóm tắt đối với người xem. File requirements-lock.txt ghi môi trường đã kiểm tra; dùng `pip install -r requirements-lock.txt` để tái lập.
+
+
+oh no, anh cần xem highlight pick thì phải là những đoạn tranh bóng ác liệt hấp dẫn, hoặc phát bóng ăn điểm trực tiếp. nó phải full cái đoạn đó chứ không phải cứ cắt 1-2s rồi chuyển cảnh đâu em, hiện tại anh xem thấy nó bị cắt ngay đoạn chuẩn bị phát bóng, chuyển cảnh liên tục chưa có gì gọi là highlight nó chỉ đang là rút ngắn video lại và không có ý nghĩa gì trong những đoạn rút ngắn
