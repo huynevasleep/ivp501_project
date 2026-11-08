@@ -2,11 +2,11 @@
 
 ## Báo cáo trong `reports/` (đọc trước khi sửa phần highlight)
 
-Người và agent làm tiếp phần highlight/ảnh vận động viên: đọc báo cáo trong `reports/` trước, rồi cập nhật nó khi đổi thuật toán hoặc có số đo mới.
+Người và agent làm tiếp phần highlight/ảnh vận động viên: đọc báo cáo trong `reports/` trước, rồi cập nhật nó khi đổi thuật toán hoặc có số đo mới. Mỗi báo cáo có mục **Việc mở**: ai làm được việc nào thì ghi tên nhận và làm, không cần chờ duyệt. Bản HTML sinh từ `.md` bằng `python reports/build_html.py` (cần `pip install markdown`).
 
 | Báo cáo | Tác giả | Nội dung | Tình trạng (08/11/2026) |
 |---|---|---|---|
-| [`reports/anhnhc/tach-pha-bong.md`](reports/anhnhc/tach-pha-bong.md) (bản HTML cùng thư mục, sinh từ file `.md`) | anhnhc | 3 mục tiêu đề tài; thuật toán tách pha bóng đang chạy (camera sân + khán giả im, Otsu), các bước, hình và số đo trên trận pickleball 67 phút; kế hoạch bắt bóng–vợt và tăng nét/giảm mờ ảnh | Mục tiêu 2 (ghép pha có timecode) đã chạy. Mục tiêu 1 mới có bản nền gián tiếp, **chưa nhận bóng/vợt**. Mục tiêu 3 mới chọn khung (~4/12 ảnh dùng được), chưa tăng nét. **Chờ chốt:** định nghĩa kết thúc pha (luật hai lần nảy, mục 3.1) và có video 1080p không |
+| [`reports/anhnhc/tach-pha-bong.md`](reports/anhnhc/tach-pha-bong.md) (bản HTML cùng thư mục, sinh từ file `.md`) | anhnhc | 3 mục tiêu đề tài; thuật toán tách pha bóng đang chạy (camera sân + khán giả im, Otsu), các bước, hình và số đo trên trận pickleball 67 phút; kế hoạch bắt bóng–vợt và tăng nét/giảm mờ ảnh | Mục tiêu 2 (ghép pha có timecode) đã chạy. Mục tiêu 1 mới có bản nền gián tiếp, **chưa nhận bóng/vợt**. Mục tiêu 3 mới chọn khung (~4/12 ảnh dùng được), chưa tăng nét. **Việc mở V1–V6** (mục 7): tìm video ≥ 1080p, gán nhãn người, bắt bóng, nhận cú chạm vợt/chạm sàn, giữ cảnh camera lia, tăng nét ảnh góc ngang |
 
 ## Bản nâng cấp thực nghiệm
 

@@ -4,6 +4,8 @@
 
 Ghi chú này bám theo 3 mục tiêu của đề tài. Với mỗi mục tiêu, nó ghi rõ đã làm gì, bằng thuật toán nào, đo được gì, và còn thiếu gì. Mọi con số đo trên một trận pickleball 67 phút (854×480, 29,97 fps) bằng code hiện tại của nhánh.
 
+**Ai trong nhóm (người hay agent) thấy làm được việc nào ở mục 7 "Việc mở" thì nhận và làm**, không cần chờ ai duyệt trước.
+
 ## 1. Mục tiêu đề tài
 
 1. **Tìm thuật toán và các bước xử lý ảnh để xác định pha bóng.** Ví dụ: bắt keyframe có hình quả bóng và mặt vợt chạm nhau (bắt đầu, tiếp tục một pha); nối các khung cho tới khi quả bóng rơi xuống sàn mà không chạm mặt vợt (kết thúc pha).
@@ -18,13 +20,13 @@ Ghi chú này bám theo 3 mục tiêu của đề tài. Với mỗi mục tiêu,
 | 2. Ghép pha có timecode | **Có**: mỗi pha có `start`/`end` (giây) trong `report.json`; video ghép theo thứ tự thời gian, mỗi pha lấy trọn (mục 4) | Timecode đang đến từ bản nền; khi mục 3.3 xong sẽ thay bằng timecode bóng–vợt |
 | 3. Ảnh góc ngang, tăng nét, giảm mờ | **Một phần**: chọn được khung cầu thủ lúc vung vợt, khoảng 4/12 ảnh dùng được (mục 5.1) | Chưa lọc riêng camera góc ngang; **chưa có bước tăng nét, giảm mờ** (kế hoạch mục 5.2) |
 
-Chưa có nhãn của người gán nên **chưa có số đo độ chính xác** cho mục tiêu nào; các kết luận về chất lượng đều là kiểm bằng mắt.
+Chưa có nhãn của người gán nên **chưa có số đo độ chính xác** cho mục tiêu nào; các kết luận về chất lượng đều là kiểm bằng mắt. Các việc còn lại ở mục 7.
 
 ## 3. Mục tiêu 1: xác định pha bóng
 
-### 3.1 Định nghĩa pha bóng (đề xuất, chờ anh chốt)
+### 3.1 Định nghĩa pha bóng (dùng làm chuẩn)
 
-Pickleball có **luật hai lần nảy**: cú giao bóng và cú trả giao phải để bóng chạm sàn trước khi đánh. Vì vậy "bóng rơi xuống sàn" chưa chắc đã hết pha. Đề xuất:
+Pickleball có **luật hai lần nảy**: cú giao bóng và cú trả giao phải để bóng chạm sàn trước khi đánh. Vì vậy "bóng rơi xuống sàn" chưa chắc đã hết pha. Nhóm dùng định nghĩa sau; ai gặp trường hợp không khớp (giao bóng lỗi, giao lại do chạm lưới…) thì bổ sung vào đây, kèm timecode ví dụ trong video:
 
 - **Bắt đầu pha:** cú chạm vợt đầu tiên là cú giao bóng.
 - **Tiếp tục:** mỗi lần quỹ đạo bóng đổi hướng đột ngột cạnh một cầu thủ là một cú chạm vợt.
@@ -89,7 +91,7 @@ Pha bóng = **camera sân đang lên hình VÀ khán giả đang im**. Hai ngư�
 - Dựa vào khán giả im lặng: dùng được cho pickleball, tennis; không dùng nguyên được cho môn khán giả ồn suốt trận.
 - Mới chạy trên một trận; K = 12 chưa thử với video khác.
 
-### 3.3 Kế hoạch bắt bóng và vợt (chưa làm)
+### 3.3 Kế hoạch bắt bóng và vợt (chưa làm: việc V3, V4)
 
 **Đã đo:** tách màu vàng của quả bóng bằng ngưỡng HSV trên 24 khung camera sân cho ra **54–176 vật màu vàng mỗi khung**: khán giả, chữ quảng cáo, bảng điểm, mũ vàng của trọng tài, giày cầu thủ. Quả bóng ở 480p chỉ cỡ vài pixel. Vậy **chỉ dùng màu là không đủ**.
 
@@ -139,7 +141,7 @@ Trong mỗi pha được chọn: trừ nền **MOG2**, lọc hình thái (mở, 
 
 Kết quả: khoảng 4/12 ảnh dùng được; số còn lại dính hai người, chỉ được phần chân, hoặc dính bảng quảng cáo. 8/12 ảnh lấy từ camera góc ngang, 4 ảnh từ camera dọc sân. Cầu thủ trong khung cao 70–300 px.
 
-### 5.2 Kế hoạch (chưa làm)
+### 5.2 Kế hoạch (chưa làm: việc V1, V6)
 
 1. **Chỉ lấy camera góc ngang** (cụm có lưới dựng giữa hình; trong trận này là cụm 1).
 2. **Chọn khoảnh khắc** tốt hơn: dùng sự kiện chạm vợt của mục 3.3, lấy khung ngay trước, đúng lúc và ngay sau khi chạm.
@@ -159,3 +161,27 @@ Giới hạn: video gốc 480p nên ảnh đăng Facebook bị giới hạn đ�
 ```
 
 Chọn loại video "Thể thao có pha bóng". Test của phần này ở `tests/test_rally.py` (7 test, dữ liệu tổng hợp).
+
+## 7. Việc mở: ai làm được thì nhận
+
+Cách nhận: ghi tên mình và ngày vào cột "Người nhận" trong bảng này, commit lên nhánh rồi làm. Xong thì ghi kết quả vào mục báo cáo tương ứng, cập nhật bảng mục 2 và bảng "Báo cáo trong `reports/`" ở đầu `README.md`, rồi sinh lại HTML (mục 8). Số liệu phải đo được và kèm lệnh hoặc script để chạy lại; kiểm bằng mắt thì ghi rõ là kiểm bằng mắt.
+
+| # | Việc | Thuộc mục tiêu | Xong khi | Ghi kết quả vào | Người nhận |
+|---|---|---|---|---|---|
+| V1 | Tìm video pickleball phát sóng ≥ 1080p, có camera góc ngang | 1, 3 | Có file hoặc link dùng được, kèm URL, tác giả, giấy phép, ngày truy cập (theo mục "Dữ liệu và giao thức" của README) | `README.md` mục dữ liệu; mục 5.2 | |
+| V2 | Gán nhãn người cho trận thử: start/end từng pha theo định nghĩa mục 3.1 | 1, 2 | Có file JSON nhãn (định dạng ở README, tạo được ở tab "Gán nhãn" của app) cho ít nhất một đoạn của trận, và F1 của bản nền so với nhãn đó | Mục 2, mục 3.2 | |
+| V3 | Thử bắt bóng theo kế hoạch mục 3.3 trên vài pha | 1 | Có script chạy được, hình quỹ đạo bóng vẽ chồng lên khung, và tỉ lệ khung có bóng bắt được so với đếm tay trên các pha thử | Mục 3.3 | |
+| V4 | Nhận cú chạm vợt và lúc bóng chạm sàn từ quỹ đạo (cần V3) | 1 | Có timecode từng cú chạm, so với đếm tay trên các pha thử | Mục 3.3; khi ổn thì thay timecode ở mục 4 | |
+| V5 | Giữ cảnh sân quay bằng camera lia (đang bị loại, xem giới hạn mục 3.2) | 1 | Các pha có đoạn camera lia không còn bị mất hoặc cắt đôi; so số pha trước và sau | Mục 3.2 | |
+| V6 | Ảnh góc ngang: chỉ lấy camera góc ngang, tăng nét, giảm mờ theo mục 5.2 | 3 | Bộ ảnh trước và sau xử lý của cùng các khung, kèm thông số bộ lọc đã dùng | Mục 5 | |
+
+## 8. Sinh lại bản HTML
+
+Bản HTML được sinh từ file `.md`; sửa file `.md` rồi chạy:
+
+```bash
+pip install markdown
+python reports/build_html.py
+```
+
+Kiểu trang ở `reports/report.css`. Không sửa tay file `.html`.
