@@ -1,5 +1,7 @@
 # VideoLens — Đề tài 10
 
+**Chế độ mặc định mới: highlight pickleball toàn trận.** Tải video lên → tìm khoảng hoạt động trên sân → tự tạo highlight theo giới hạn phút → duyệt/chỉnh pha nếu cần. Xem [hướng dẫn pickleball](PICKLEBALL.md) và `Pickleball.ipynb`. Bộ phát hiện hiện là heuristic chuyển động cho góc quay cố định, chưa nhận diện bóng hoặc xác định pha thắng điểm.
+
 ## Bản nâng cấp thực nghiệm
 
 Giao diện có lựa chọn greedy/knapsack, timeline đoạn chọn, biểu đồ đóng góp đặc trưng và tab gán nhãn trực tiếp khi xem video gốc. Tải lại localhost để dùng bản mới; phân tích lại video để tạo báo cáo có trường giải thích.

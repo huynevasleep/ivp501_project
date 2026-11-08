@@ -14,6 +14,11 @@ from presentation import FEATURES, MODES, METHODS, timestamp, reason, segment_ta
 st.set_page_config(page_title='VideoLens • Video Analytics', page_icon='🎬', layout='wide')
 st.title('🎬 VideoLens')
 st.caption('Phân tích video • Khung hình chính • Highlight có giải thích')
+workflow=st.sidebar.radio('Mục đích sử dụng',['Highlight pickleball','Video tổng quát'],index=1 if 'result' in st.session_state else 0)
+if workflow=='Highlight pickleball':
+    from match_ui import render
+    render()
+    st.stop()
 with st.sidebar:
     st.header('Thiết lập phân tích')
     upload=st.file_uploader('Video của bạn', type=['mp4','mov','avi','mkv'])
