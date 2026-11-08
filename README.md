@@ -1,5 +1,13 @@
 # VideoLens — Đề tài 10
 
+## Báo cáo trong `reports/` (đọc trước khi sửa phần highlight)
+
+Người và agent làm tiếp phần highlight/ảnh vận động viên: đọc báo cáo trong `reports/` trước, rồi cập nhật nó khi đổi thuật toán hoặc có số đo mới.
+
+| Báo cáo | Tác giả | Nội dung | Tình trạng (08/11/2026) |
+|---|---|---|---|
+| [`reports/anhnhc/tach-pha-bong.md`](reports/anhnhc/tach-pha-bong.md) (bản HTML cùng thư mục, sinh từ file `.md`) | anhnhc | 3 mục tiêu đề tài; thuật toán tách pha bóng đang chạy (camera sân + khán giả im, Otsu), các bước, hình và số đo trên trận pickleball 67 phút; kế hoạch bắt bóng–vợt và tăng nét/giảm mờ ảnh | Mục tiêu 2 (ghép pha có timecode) đã chạy. Mục tiêu 1 mới có bản nền gián tiếp, **chưa nhận bóng/vợt**. Mục tiêu 3 mới chọn khung (~4/12 ảnh dùng được), chưa tăng nét. **Chờ chốt:** định nghĩa kết thúc pha (luật hai lần nảy, mục 3.1) và có video 1080p không |
+
 ## Bản nâng cấp thực nghiệm
 
 Giao diện có lựa chọn greedy/knapsack, timeline đoạn chọn, biểu đồ đóng góp đặc trưng và tab gán nhãn trực tiếp khi xem video gốc. Tải lại localhost để dùng bản mới; phân tích lại video để tạo báo cáo có trường giải thích.

@@ -1,152 +1,161 @@
-# Tách pha bóng để làm highlight: thuật toán và các bước xử lý
+# Highlight pha bóng: thuật toán, các bước xử lý và tình trạng theo mục tiêu
 
-*anhnhc · 08/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
+*anhnhc · cập nhật 08/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
 
-Ghi chú này giải thích cách VideoLens nhận ra **một pha bóng** trong video phát sóng môn vợt, và vì sao nó bỏ được các cảnh quay khán đài, cận mặt vận động viên, phỏng vấn, đồ họa. Mọi con số dưới đây đo trên một trận pickleball 67 phút (854×480, 29,97 fps), chạy bằng code hiện tại của nhánh.
+Ghi chú này bám theo 3 mục tiêu của đề tài. Với mỗi mục tiêu, nó ghi rõ đã làm gì, bằng thuật toán nào, đo được gì, và còn thiếu gì. Mọi con số đo trên một trận pickleball 67 phút (854×480, 29,97 fps) bằng code hiện tại của nhánh.
 
-## 1. Bài toán và tiêu chí
+## 1. Mục tiêu đề tài
 
-Highlight phải là những pha tranh bóng hấp dẫn hoặc phát bóng ăn điểm, và phải lấy **trọn pha**: từ lúc chuẩn bị phát bóng tới lúc bóng chết. Không cắt vụn 1–2 giây, không chuyển cảnh liên tục. Tiêu chí đầy đủ nằm ở cuối `README.md`.
+1. **Tìm thuật toán và các bước xử lý ảnh để xác định pha bóng.** Ví dụ: bắt keyframe có hình quả bóng và mặt vợt chạm nhau (bắt đầu, tiếp tục một pha); nối các khung cho tới khi quả bóng rơi xuống sàn mà không chạm mặt vợt (kết thúc pha).
+2. **Ghép toàn bộ các pha bóng** (có timecode bắt đầu, kết thúc) thành một video highlight.
+3. **(Làm thêm) Ảnh hoặc video góc ngang của vận động viên** để đăng Facebook, như phóng viên hiện trường: bắt khoảnh khắc đẹp nhất, xử lý, tăng độ nét, giảm mờ.
 
-## 2. Vì sao cách cũ hỏng
+## 2. Tình trạng
 
-Cách cũ chia video theo "chuyển cảnh" (độ lệch histogram HSV + sai khác khung), rồi chấm điểm từng mẩu ≤ 4 giây theo chuyển động, khuôn mặt, độ nét.
-
-| Đo trên trận 67 phút | Cách cũ |
-|---|---|
-| Số lần "chuyển cảnh" phát hiện | 1 243 (gần như giây nào cũng có) |
-| Số đoạn trong highlight | 519 |
-| Độ dài đoạn (trung vị / dài nhất) | 1,0 s / 3,7 s |
-
-Người chạy và bóng bay làm histogram thay đổi, nên bị tưởng là chuyển cảnh. Cách này không có khái niệm "pha bóng", nên mới cắt ngang lúc chuẩn bị phát bóng.
-
-## 3. Ý tưởng: hai dấu hiệu cùng lúc
-
-Một pha bóng trên sóng truyền hình có hai dấu hiệu đi cùng nhau:
-
-1. **Hình:** đài dùng **camera cố định quay toàn sân**. Bố cục màu gần như không đổi (sân xanh, nền đỏ, khán đài phía sau) và hình gần như đứng yên. Ngược lại, cận mặt, khán giả, phỏng vấn, đồ họa đều quay tay, zoom, lia, hoặc là hình động, nên chuyển động lớn hơn khoảng 10 lần.
-2. **Tiếng:** trong lúc đánh **khán giả im**; hết pha thì **reo**.
-
-Pha bóng = những lúc **camera sân đang lên hình VÀ khán giả đang im**. Cả hai ngưỡng đều do **Otsu** tự chọn theo từng video, không đặt tay.
-
-## 4. Các bước xử lý
-
-### Bước 1. Lấy mẫu khung hình (`analyze`)
-
-- Lấy 2 khung/giây (bước = `round(fps/2)` = 15 khung). Dùng `cap.grab()` để bỏ qua khung không cần, chỉ `cap.retrieve()` khung được lấy mẫu. Trận 67 phút cho 8 022 khung mẫu, phân tích mất 107 giây trên CPU.
-- Thu nhỏ mỗi khung về 320×180.
-
-### Bước 2. Đặc trưng hình của mỗi khung mẫu
-
-| Đặc trưng | Cách tính | Dùng để |
+| Mục tiêu | Đã làm | Còn thiếu |
 |---|---|---|
-| Bố cục màu | Đổi sang **Lab**, thu về **16×9** (`INTER_AREA`), duỗi thành vector 432 số | Gom khung cùng một góc camera |
-| Chuyển động | **Optical flow Farneback** giữa hai khung mẫu liền nhau, lấy trung bình độ lớn vector (px) | Phân biệt camera cố định với quay tay/lia/zoom |
+| 1. Xác định pha bằng bóng và vợt | **Bản nền gián tiếp** (mục 3.2): pha = camera sân đang lên hình VÀ khán giả im. Chạy được, tách 154 pha | **Chưa có bước nhận bóng hay vợt.** Ranh giới pha đang lấy từ âm thanh, chưa phải từ sự kiện bóng–vợt–sàn. Kế hoạch ở mục 3.3 |
+| 2. Ghép pha có timecode | **Có**: mỗi pha có `start`/`end` (giây) trong `report.json`; video ghép theo thứ tự thời gian, mỗi pha lấy trọn (mục 4) | Timecode đang đến từ bản nền; khi mục 3.3 xong sẽ thay bằng timecode bóng–vợt |
+| 3. Ảnh góc ngang, tăng nét, giảm mờ | **Một phần**: chọn được khung cầu thủ lúc vung vợt, khoảng 4/12 ảnh dùng được (mục 5.1) | Chưa lọc riêng camera góc ngang; **chưa có bước tăng nét, giảm mờ** (kế hoạch mục 5.2) |
 
-Lab được chọn vì khoảng cách trong Lab gần với cảm nhận màu của mắt. Thu về 16×9 để chỉ giữ **bố cục lớn** (mảng sân, mảng khán đài) mà bỏ chi tiết người chạy.
+Chưa có nhãn của người gán nên **chưa có số đo độ chính xác** cho mục tiêu nào; các kết luận về chất lượng đều là kiểm bằng mắt.
 
-### Bước 3. Âm lượng (`audio_loudness`)
+## 3. Mục tiêu 1: xác định pha bóng
 
-Tách âm thanh bằng ffmpeg (mono, 8 kHz). Với mỗi khung mẫu, tính **RMS trong cửa sổ 0,5 s** quanh nó và đổi sang dBFS: `10·log10(trung bình bình phương mẫu)`. Dùng tổng tích lũy nên tính nhanh cho cả trận.
+### 3.1 Định nghĩa pha bóng (đề xuất, chờ anh chốt)
 
-### Bước 4. Gom cụm góc camera
+Pickleball có **luật hai lần nảy**: cú giao bóng và cú trả giao phải để bóng chạm sàn trước khi đánh. Vì vậy "bóng rơi xuống sàn" chưa chắc đã hết pha. Đề xuất:
 
-**K-means 12 cụm** trên vector bố cục màu (`random_state=42`). Mỗi cụm là một "kiểu cảnh". Hình dưới là 5 khung ngẫu nhiên của từng cụm, nhãn SÂN/KHÁC là kết quả của bước 5.
+- **Bắt đầu pha:** cú chạm vợt đầu tiên là cú giao bóng.
+- **Tiếp tục:** mỗi lần quỹ đạo bóng đổi hướng đột ngột cạnh một cầu thủ là một cú chạm vợt.
+- **Kết thúc pha:** bóng chạm sàn mà sau đó không có cú chạm vợt nào, hoặc bóng ra ngoài sân, hoặc vào lưới.
 
-![Khung mẫu của 12 cụm camera](img/cum_camera.jpg)
+### 3.2 Bản nền đang chạy (gián tiếp, không nhận bóng)
 
-### Bước 5. Tìm camera sân: Otsu trên log chuyển động (`detect_rallies`)
+**Vì sao cần.** Cách cũ chia video theo "chuyển cảnh" (độ lệch histogram HSV + sai khác khung) và chấm điểm từng mẩu ≤ 4 giây. Trên trận 67 phút nó báo **1 243** lần chuyển cảnh và cho highlight **519** đoạn dài trung vị **1,0 s**, cắt ngang cả lúc chuẩn bị phát bóng. Người chạy, bóng bay làm histogram đổi nên bị tưởng là chuyển cảnh.
 
-- Với mỗi cụm, lấy **trung vị chuyển động** của các khung trong cụm.
-- Chạy **Otsu** trên `log(trung vị chuyển động)` của 12 cụm, trọng số là số khung của cụm. Cụm ở phía thấp là camera sân cố định.
-- Trận này: ngưỡng ≈ 0,54 px/khung. Ba cụm sân có trung vị 0,44–0,54; chín cụm còn lại 2,7–6,9.
+**Ý tưởng.** Trên sóng truyền hình, một pha bóng có hai dấu hiệu cùng lúc:
 
-Phải dùng **thang log** vì chuyển động khác nhau theo **tỉ lệ** (quay tay gấp khoảng 10 lần camera cố định). Bản đầu dùng Otsu trên thang thường, ngưỡng rơi vào 2,75 và cụm 3 (phỏng vấn, trung vị 2,74) bị xếp nhầm vào "sân".
+1. **Hình:** đài dùng **camera cố định quay toàn sân**; bố cục màu gần như không đổi, hình gần như đứng yên. Cận mặt, khán giả, phỏng vấn, đồ họa quay tay, zoom, lia hoặc là hình động, chuyển động lớn hơn khoảng 10 lần.
+2. **Tiếng:** trong lúc đánh khán giả im; hết pha thì reo.
 
-![Chuyển động trung vị theo cụm](img/chuyen_dong_cum.png)
+Pha bóng = **camera sân đang lên hình VÀ khán giả đang im**. Hai ngưỡng do **Otsu** tự chọn theo từng video.
 
-Kết quả: 4 526 khung mẫu (37,8 phút) thuộc camera sân.
+**Các bước** (`analyze`, `audio_loudness`, `detect_rallies`):
 
-### Bước 6. Tìm lúc khán giả im: Otsu trên âm lượng
+1. **Lấy mẫu** 2 khung/giây (`grab()` bỏ qua khung không cần, `retrieve()` khung lấy mẫu); thu về 320×180. Trận này: 8 022 khung mẫu, phân tích 107 s trên CPU.
+2. **Đặc trưng hình mỗi khung:** bố cục màu = ảnh **Lab** thu về **16×9** (`INTER_AREA`), duỗi thành vector 432 số; chuyển động = trung bình độ lớn **optical flow Farneback** giữa hai khung mẫu liền nhau (px). Lab vì khoảng cách gần với cảm nhận màu của mắt; 16×9 để giữ bố cục lớn và bỏ chi tiết người chạy.
+3. **Âm lượng:** tách âm thanh bằng ffmpeg (mono, 8 kHz), tính **RMS trong cửa sổ 0,5 s** quanh mỗi khung mẫu, đổi sang dBFS.
+4. **Gom cụm góc camera:** **K-means 12 cụm** trên vector bố cục màu (`random_state=42`).
 
-Phân bố âm lượng của cả trận có hai đỉnh rõ. **Otsu** chọn ngưỡng **−26,3 dBFS**. Trung vị âm lượng: lúc camera sân lên hình và đang im là −30,4 dB; lúc camera sân mà ồn (giữa hai điểm, reo hò) là −21,8 dB; các cảnh khác là −21,1 dB.
+   ![Khung mẫu của 12 cụm camera](img/cum_camera.jpg)
 
-![Phân bố âm lượng](img/am_luong.png)
+5. **Tìm camera sân:** lấy trung vị chuyển động của mỗi cụm, chạy **Otsu trên log** của nó (trọng số = số khung). Ngưỡng ≈ 0,54 px/khung: 3 cụm sân có trung vị 0,44–0,54, chín cụm còn lại 2,7–6,9. Phải dùng thang log vì chuyển động khác nhau theo tỉ lệ; trên thang thường ngưỡng rơi vào 2,75 và cụm phỏng vấn (2,74) bị xếp nhầm vào "sân". Kết quả: 4 526 khung mẫu (37,8 phút) thuộc camera sân. Trong đó **cụm 1 là góc ngang** (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.
 
-### Bước 7. Ghép thành pha bóng
+   ![Chuyển động trung vị theo cụm](img/chuyen_dong_cum.png)
 
-1. `chơi = camera sân AND im`.
-2. **Lấp lỗ** ≤ 1 s nằm giữa hai đoạn "chơi" (một tiếng động ngắn, một lần đổi góc ngắn).
-3. Bỏ đoạn ngắn hơn **1,5 s**.
-4. Mở rộng mỗi pha **1 s trước** để có động tác phát bóng, nhưng **không lùi quá đầu cảnh sân**: nếu ngay trước đó là cảnh cận mặt thì pha bắt đầu đúng lúc cắt sang sân. Mở rộng thêm **2 s sau** để có tiếng reo.
-5. Hai pha sát nhau mà phần mở rộng chồng lên nhau thì cắt ở giữa khoảng nghỉ.
+6. **Tìm lúc khán giả im:** **Otsu** trên âm lượng cả trận cho ngưỡng **−26,3 dBFS**. Trung vị: camera sân lúc im −30,4 dB; camera sân lúc ồn −21,8 dB; các cảnh khác −21,1 dB.
 
-Hình dưới là 150 giây quanh pha điểm cao nhất (từ 43:04). Dải xanh trên là lúc camera sân lên hình. Vùng vàng là các pha tách được. Vạch xanh dưới đáy là pha được chọn vào highlight 10 %.
+   ![Phân bố âm lượng](img/am_luong.png)
 
-![Dòng thời gian 150 giây](img/dong_thoi_gian.png)
+7. **Ghép pha:** `chơi = camera sân AND im`; lấp lỗ ≤ 1 s giữa hai đoạn chơi; bỏ đoạn < 1,5 s; mở rộng **1 s trước** (không lùi quá đầu cảnh sân) và **2 s sau**; hai pha chồng phần mở rộng thì cắt ở giữa khoảng nghỉ.
 
-### Bước 8. Chấm điểm pha
+   ![Dòng thời gian 150 giây](img/dong_thoi_gian.png)
 
-Điểm = trung bình hai **thứ hạng phần trăm** (percentile rank) trong cùng trận:
+   *150 giây từ 43:04. Dải xanh trên: camera sân. Vàng: pha tách được. Vạch xanh dưới đáy: pha được chọn vào highlight 10 %.*
 
-- **Độ dài pha**: đánh qua lại càng lâu càng hấp dẫn.
-- **Tiếng reo**: âm lượng lớn nhất trong **3 s** sau khi pha kết thúc.
+8. **Chấm điểm pha:** trung bình hai thứ hạng phần trăm trong trận: **độ dài pha** và **âm lượng lớn nhất trong 3 s sau pha** (tiếng reo). Dùng thứ hạng để giây và dB về cùng thang 0–1.
 
-Dùng thứ hạng thay vì giá trị thô để hai đại lượng khác đơn vị (giây và dB) có cùng thang 0–1.
-
-### Bước 9. Chọn pha cho highlight (`select(mode='rally')`)
-
-Xếp pha theo điểm giảm dần, lấy dần cho tới hết ngân sách thời lượng. **Một pha hoặc lấy trọn, hoặc bỏ**, không bao giờ cắt ngắn. Có thể chọn knapsack 0/1 thay cho cách tham lam. Highlight ghép các pha theo đúng thứ tự thời gian.
-
-## 5. Kết quả trên trận 67 phút
-
-| Đo | Giá trị |
-|---|---|
-| Số pha tách được | 154 |
-| Độ dài pha (p10 / trung vị / p90 / dài nhất) | 1,5 / 6,3 / 18,5 / 33,5 s |
-| Tổng thời lượng các pha (chưa cộng phần trước/sau) | 21,9 phút |
-| Highlight 5 % | 7 pha, 3,3 phút, mỗi pha 15,5–36,5 s |
-| Highlight 10 % | 17 pha, 6,7 phút, mỗi pha 12,5–36,5 s |
-| Highlight 15 % | 29 pha, 10,0 phút, mỗi pha 3,3–36,5 s |
-| Thời gian trên CPU | phân tích 107 s, xuất video 14 s |
+**Kết quả:** 154 pha; độ dài p10 / trung vị / p90 / dài nhất = 1,5 / 6,3 / 18,5 / 33,5 s; tổng 21,9 phút.
 
 ![Phân bố độ dài pha](img/do_dai_pha.png)
 
-Bốn pha điểm cao nhất, mỗi hàng là một pha. Từ trái sang: 1 s trước phát bóng, lúc phát bóng, giữa pha, cuối pha, tiếng reo.
-
-![Bốn pha điểm cao nhất](img/pha_duoc_chon.jpg)
-
-Chưa có nhãn của người gán nên **chưa có số đo độ chính xác**. Các số trên chỉ là kiểm bằng mắt.
-
-## 6. Vì sao cách này loại được khán đài và vận động viên
+**Loại cảnh bị bỏ ở bước nào:**
 
 | Loại cảnh | Bị loại ở bước | Lý do |
 |---|---|---|
 | Cận mặt vận động viên, khán giả | 5 | Quay tay, zoom: chuyển động trung vị 5–7 px/khung |
-| Phỏng vấn sau trận | 5 | Bố cục khác hẳn sân; chuyển động 2,7 px/khung, vẫn trên ngưỡng log |
+| Phỏng vấn sau trận | 5 | Bố cục khác sân; chuyển động 2,7 px/khung, vẫn trên ngưỡng log |
 | Đồ họa, logo, flycam | 5 | Hình động, chuyển động lớn |
-| Toàn sân lúc giữa hai điểm (nhặt bóng, đi về vị trí) | 6 | Camera sân nhưng âm lượng trên ngưỡng −26,3 dB (trung vị lúc này −21,8 dB) |
+| Toàn sân lúc giữa hai điểm | 6 | Camera sân nhưng âm lượng trên ngưỡng (trung vị −21,8 dB) |
 | Toàn sân lúc đang đánh | được giữ | Camera cố định và khán giả im |
 
-## 7. Giới hạn đã thấy
+**Giới hạn của bản nền:**
 
-- **Camera lia theo bóng bị loại.** Cụm 0 và cụm 4 có lẫn cảnh sân quay từ góc hông khi camera lia. Chuyển động lớn nên chúng bị xếp vào "khác", và phần pha bóng chiếu bằng camera đó bị mất hoặc làm pha bị cắt đôi.
-- **Pha rất ngắn có thể là giả.** 43 pha chỉ dài 1,5–3 s; nhiều khả năng là lúc im lặng giữa hai điểm. Chúng ít khi được chọn vì điểm ưu tiên pha dài.
-- **Phát bóng ăn điểm trực tiếp bị lép vế.** Pha ngắn nên thứ hạng độ dài thấp, chỉ được bù nếu tiếng reo rất to. Muốn nhận ra chắc chắn thì phải theo dõi được quả bóng.
-- **Phụ thuộc khán giả im lặng.** Đúng với pickleball và tennis; không dùng nguyên được cho bóng đá, bóng rổ, nơi khán giả ồn suốt trận.
-- **Một trận, một giải.** Mới chạy trên một trận; số cụm K = 12 chưa thử với video khác.
-- **Chưa có nhãn người** để đo độ chính xác và F1 so với highlight do người chọn.
+- Không nhìn thấy quả bóng, nên không biết pha bắt đầu và kết thúc đúng ở cú đánh nào; ranh giới lệch theo phản ứng của khán giả.
+- Camera lia theo bóng bị loại: cụm 0 và cụm 4 có lẫn cảnh sân quay khi camera lia; phần pha bóng chiếu bằng camera đó bị mất hoặc làm pha bị cắt đôi.
+- 43 pha chỉ dài 1,5–3 s, nhiều khả năng là lúc im giữa hai điểm.
+- Phát bóng ăn điểm trực tiếp bị lép vế vì pha ngắn, chỉ được bù nếu tiếng reo rất to.
+- Dựa vào khán giả im lặng: dùng được cho pickleball, tennis; không dùng nguyên được cho môn khán giả ồn suốt trận.
+- Mới chạy trên một trận; K = 12 chưa thử với video khác.
 
-## 8. Ảnh cầu thủ lúc vung vợt (thử nghiệm, `best_shots`)
+### 3.3 Kế hoạch bắt bóng và vợt (chưa làm)
 
-Trong mỗi pha được chọn: trừ nền **MOG2**, lọc hình thái (mở/đóng, co), gán nhãn thành phần liên thông; giữ thành phần cao hơn 12 % khung, cao hơn rộng, **chân đứng trên màu sàn** và không chạm mép khung. Bám cùng một người qua các khung bằng độ chồng hộp (IoU). "Lúc ra lực" = lúc **dáng người đổi nhiều nhất**, đo bằng `1 − IoU` mặt nạ hai khung liên tiếp; quanh đó lấy khung có **phương sai Laplacian** (độ nét) lớn nhất.
+**Đã đo:** tách màu vàng của quả bóng bằng ngưỡng HSV trên 24 khung camera sân cho ra **54–176 vật màu vàng mỗi khung**: khán giả, chữ quảng cáo, bảng điểm, mũ vàng của trọng tài, giày cầu thủ. Quả bóng ở 480p chỉ cỡ vài pixel. Vậy **chỉ dùng màu là không đủ**.
 
-Mới khoảng 4/12 ảnh dùng được; số còn lại dính hai người, chỉ được phần chân, hoặc dính bảng quảng cáo. Muốn chọn đúng tư thế cần mô hình nhận người và tư thế, và video ≥ 1080p.
+![Vật màu vàng tách theo HSV (khung tím)](img/vat_mau_vang.jpg)
 
-## 9. Chạy lại
+*Khung tím: vật màu vàng tách theo HSV. Hai cột trái là camera dọc sân, hai cột phải là camera góc ngang.*
+
+Các bước đề xuất, đều là kỹ thuật trong môn học:
+
+1. **Chỉ xét các đoạn bản nền đã khoanh** (camera sân, khán giả im) để giảm khối lượng và nhiễu.
+2. **Đọc đủ 30 khung/giây** trong các đoạn đó (bóng bay nhanh; 2 khung/giây của bản nền là quá thưa).
+3. **Mặt nạ vùng sân:** chỉ giữ pixel trên màu sàn và một dải phía trên sàn; bỏ khán đài, bảng quảng cáo, bảng điểm.
+4. **Trừ nền** (MOG2 hoặc sai khác ba khung liên tiếp): chỉ giữ vật đang chuyển động; loại mũ trọng tài, chữ đứng yên.
+5. **Ứng viên bóng** = tiền cảnh ∩ màu vàng (HSV) ∩ kích thước nhỏ ∩ gần tròn (tỉ lệ diện tích trên hộp bao).
+6. **Bám quỹ đạo:** nối ứng viên qua các khung theo khoảng cách gần nhất, dự đoán bằng vận tốc (hoặc lọc Kalman); bỏ điểm không nối được.
+7. **Sự kiện:**
+   - *Chạm vợt:* quỹ đạo đổi hướng đột ngột trong hoặc sát hộp bao một cầu thủ (đã có cách tìm cầu thủ ở mục 5.1).
+   - *Chạm sàn:* vận tốc theo phương dọc màn hình đổi dấu ở xa cầu thủ.
+   - *Kết thúc:* theo định nghĩa mục 3.1.
+8. **Timecode pha** = từ cú giao bóng tới sự kiện kết thúc, mỗi bên cộng một khoảng đệm.
+
+Rủi ro đã biết: bóng chỉ vài pixel và bị nhòe khi bay nhanh; bị lưới, người che; góc dọc sân khó thấy độ cao bóng. Cần thử trên vài pha trước khi kết luận cách này làm được.
+
+## 4. Mục tiêu 2: ghép các pha thành highlight
+
+- **Chọn pha** (`select(mode='rally')`): xếp theo điểm giảm dần, lấy dần cho tới hết ngân sách thời lượng. **Một pha hoặc lấy trọn, hoặc bỏ**, không cắt ngắn. Có thể dùng knapsack 0/1 thay cho tham lam.
+- **Timecode:** mỗi pha ghi `start`, `end` (giây trong video gốc) vào `report.json`; giao diện hiện dạng phút:giây.
+- **Ghép** (`export_video`): ffmpeg cắt từng pha (mã hóa lại H.264 + AAC), rồi nối theo đúng thứ tự thời gian.
+
+| Highlight | Số pha | Tổng | Mỗi pha |
+|---|---|---|---|
+| 5 % | 7 | 3,3 phút | 15,5–36,5 s |
+| 10 % | 17 | 6,7 phút | 12,5–36,5 s |
+| 15 % | 29 | 10,0 phút | 3,3–36,5 s |
+
+Xuất video 10 % mất 14 s. Trong 17 pha của bản 10 %, 11 pha có điểm giữa nằm ở camera góc ngang (cụm 1).
+
+![Bốn pha điểm cao nhất](img/pha_duoc_chon.jpg)
+
+*Bốn pha điểm cao nhất, mỗi hàng một pha. Từ trái: 1 s trước phát bóng, lúc phát bóng, giữa pha, cuối pha, tiếng reo.*
+
+## 5. Mục tiêu 3: ảnh góc ngang của vận động viên
+
+### 5.1 Đã làm: chọn khung lúc vung vợt (`best_shots`, thử nghiệm)
+
+Trong mỗi pha được chọn: trừ nền **MOG2**, lọc hình thái (mở, đóng, co), gán nhãn thành phần liên thông; giữ thành phần cao hơn 12 % khung, cao hơn rộng, **chân đứng trên màu sàn**, không chạm mép khung; bám cùng một người qua các khung bằng độ chồng hộp (IoU). "Lúc ra lực" = lúc **dáng người đổi nhiều nhất**, đo bằng `1 − IoU` mặt nạ hai khung liên tiếp; quanh đó lấy khung có **phương sai Laplacian** (độ nét) lớn nhất. Ảnh được cắt từ khung gốc, không phóng to.
+
+Kết quả: khoảng 4/12 ảnh dùng được; số còn lại dính hai người, chỉ được phần chân, hoặc dính bảng quảng cáo. 8/12 ảnh lấy từ camera góc ngang, 4 ảnh từ camera dọc sân. Cầu thủ trong khung cao 70–300 px.
+
+### 5.2 Kế hoạch (chưa làm)
+
+1. **Chỉ lấy camera góc ngang** (cụm có lưới dựng giữa hình; trong trận này là cụm 1).
+2. **Chọn khoảnh khắc** tốt hơn: dùng sự kiện chạm vợt của mục 3.3, lấy khung ngay trước, đúng lúc và ngay sau khi chạm.
+3. **Xử lý ảnh** (theo slide môn Xử lý Ảnh và Video số):
+   - Tăng nét: **unsharp mask** (Ví dụ 1.3).
+   - Giảm mờ do chuyển động: **Richardson–Lucy** hoặc **Wiener** với hàm trải điểm theo hướng chuyển động (Ví dụ 1.5, Bài 5).
+   - Khử nhiễu trước khi tăng nét: lọc trung vị hoặc lọc thống kê (Bài 5).
+   - Phóng to bằng nội suy song khối nếu cần (Ví dụ 2.10).
+4. **Video góc ngang ngắn:** cắt 1–2 s quanh cú đánh từ camera góc ngang.
+
+Giới hạn: video gốc 480p nên ảnh đăng Facebook bị giới hạn độ phân giải; có bản 1080p thì kết quả khác hẳn.
+
+## 6. Chạy lại
 
 ```bash
 .venv/bin/python -m streamlit run app.py --server.address 127.0.0.1
 ```
 
-Chọn loại video "Thể thao có pha bóng". Test của phần này ở `tests/test_rally.py` (7 test, dùng dữ liệu tổng hợp).
+Chọn loại video "Thể thao có pha bóng". Test của phần này ở `tests/test_rally.py` (7 test, dữ liệu tổng hợp).
