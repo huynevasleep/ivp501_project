@@ -10,7 +10,7 @@ Nhiệm vụ QC: kiểm tra tính chính xác của các thuật toán đã khai
 
 | Lệnh | Kết quả |
 |---|---|
-| `.venv/bin/python -m pytest -q` | **38 passed** (33 + 2 skipped ban đầu; 36 sau test hồi quy mục 3.1; 38 sau 2 test bóng nảy/bóng chết mục 6.1) |
+| `.venv/bin/python -m pytest -q` | **39 passed** (33 + 2 skipped ban đầu; 36 sau test hồi quy mục 3.1; 38 sau 2 test bóng nảy/bóng chết mục 6.1; 39 sau test kiểm chứng Otsu với OpenCV `test_otsu_matches_opencv_reference`) |
 | `.venv/bin/python smoke_test.py` | PASS: cuts, duration budget, MP4 export, Streamlit initial render |
 | `.venv/bin/python reports/qc/qc_experiments.py` | 4/4 ca PASS **sau khi sửa lỗi mục 3.1** (trước khi sửa: ca "một cụm duy nhất" FAIL) |
 | `.venv/bin/python reports/qc/danh_gia_video_that.py <video> [--roi …]` | đánh giá trên hai video thật, kết quả ở mục 6.2 |
@@ -139,7 +139,7 @@ Mục 7 của báo cáo tách pha tự đặt luật *"Số liệu phải đo đ
 - **`bounce_candidate` (bóng nảy):** vận tốc dọc màn hình đổi dấu từ rơi xuống sang bật lên trên một track liên tục, ngưỡng mặc định 0,2 % chiều cao khung (để nhiễu trọng tâm ở video phân giải cao không bị tính).
 - **`dead_ball_candidate` (bóng chết, luật hai lần nảy):** lần nảy thứ hai trong ≤ 2,5 s sau lần nảy trước mà **không có** ứng viên đổi hướng (cú chạm vợt khả dĩ) ở giữa; chuỗi nảy được reset khi đổi hướng, mất dấu, cắt cảnh hoặc track mới.
 
-Chứng minh trên video tổng hợp (bóng parabol nảy 2 lần, 24 fps): đúng 1 `dead_ball_candidate` tại lần nảy thứ hai; chèn một cú đảo hướng ngang giữa hai lần nảy thì không còn bóng chết nào — `tests/test_evidence.py::test_two_bounces_without_paddle_hit_flag_a_dead_ball` và `::test_a_direction_change_between_bounces_resets_the_dead_ball_count`. Toàn bộ suite: **38 passed**.
+Chứng minh trên video tổng hợp (bóng parabol nảy 2 lần, 24 fps): đúng 1 `dead_ball_candidate` tại lần nảy thứ hai; chèn một cú đảo hướng ngang giữa hai lần nảy thì không còn bóng chết nào — `tests/test_evidence.py::test_two_bounces_without_paddle_hit_flag_a_dead_ball` và `::test_a_direction_change_between_bounces_resets_the_dead_ball_count`. Toàn bộ suite: **39 passed** (test thứ 39 là kiểm chứng Otsu tự cài với OpenCV, thêm khi dựng báo cáo nộp).
 
 ### 6.2 Đánh giá trên hai video thật (YouTube Shorts, mỗi video một pha, camera đơn)
 

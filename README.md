@@ -11,7 +11,7 @@ Người và agent làm tiếp phần highlight/ảnh vận động viên: đọ
 | Báo cáo | Tác giả | Nội dung | Tình trạng (08/11/2026) |
 |---|---|---|---|
 | [`reports/anhnhc/tach-pha-bong.md`](reports/anhnhc/tach-pha-bong.md) (bản HTML cùng thư mục, sinh từ file `.md`) | anhnhc | 3 mục tiêu đề tài; thuật toán tách pha bóng đang chạy (camera sân + khán giả im, Otsu), các bước, hình và số đo trên trận pickleball 67 phút; kế hoạch bắt bóng–vợt và tăng nét/giảm mờ ảnh | Mục tiêu 2 (ghép pha có timecode) đã chạy. Mục tiêu 1 mới có bản nền gián tiếp, **chưa nhận bóng/vợt**. Mục tiêu 3 mới chọn khung (~4/12 ảnh dùng được), chưa tăng nét. **Việc mở V1–V6** (mục 7): tìm video ≥ 1080p, gán nhãn người, bắt bóng, nhận cú chạm vợt/chạm sàn, giữ cảnh camera lia, tăng nét ảnh góc ngang |
-| [`reports/qc/qc-rally-highlights.md`](reports/qc/qc-rally-highlights.md) (bản HTML cùng thư mục) | QC | Đối chiếu từng khẳng định của hai báo cáo trên với code và test: bảng 14 bước chọn timecode highlight ↔ code ↔ test; map thuật toán môn học; thí nghiệm ca biên `reports/qc/qc_experiments.py` | 36 test pass. **Bắt và sửa 1 lỗi** (video một cụm camera → 0 pha); bắt các số đo trận 67 phút chưa tái lập được và các chỗ tài liệu lệch code. **Việc mở Q1–Q4** (mục 5) |
+| [`reports/qc/qc-rally-highlights.md`](reports/qc/qc-rally-highlights.md) (bản HTML cùng thư mục) | QC | Đối chiếu từng khẳng định của hai báo cáo trên với code và test: bảng 14 bước chọn timecode highlight ↔ code ↔ test; map thuật toán môn học; thí nghiệm ca biên `reports/qc/qc_experiments.py`; đánh giá trên hai video thật | 39 test pass (09/11). **Bắt và sửa 1 lỗi** (video một cụm camera → 0 pha); bắt các số đo trận 67 phút chưa tái lập được và các chỗ tài liệu lệch code. **Việc mở Q1–Q4** (mục 5) |
 
 ## Bản nâng cấp thực nghiệm
 
@@ -72,6 +72,8 @@ Notebook: mở `VideoLens.ipynb` trong VS Code/Jupyter, chọn interpreter `.ven
 - Đánh giá nhiều người gán nhãn, F1 ranh giới ghép một-một, so sánh có/không đa dạng.
 
 ## Dữ liệu và giao thức
+
+**Dữ liệu của báo cáo nộp bài:** (1) trận pickleball phát sóng 67 phút, 854×480 — video do nhóm thu thập, **[CẦN BỔ SUNG URL + ngày truy cập trước khi nộp — hỏi người đã đo trận này]**; (2) hai video Shorts một-pha: `youtube.com/shorts/WQo-yvMozaI` và `youtube.com/shorts/eqp3tj8Y_Hg` (truy cập 09/11/2026), tải bằng yt-dlp vào `video_thu_nghiem/`.
 
 Ứng dụng nhận file video, không yêu cầu dữ liệu cài sẵn. Dùng video tự quay hoặc video CC có lưu URL, tác giả, loại giấy phép và ngày truy cập. TVSum: https://github.com/yalesong/tvsum — tham khảo cả script đánh giá chính thức trong `matlab/script_evaluate_result.m`. Nhãn gốc TVSum/SumMe cần được chuyển thành các khoảng thời gian theo đúng fps và giao thức lựa chọn của nhóm trước khi nạp JSON; dự án chưa có bộ chuyển đổi MAT/HDF5 tự động.
 

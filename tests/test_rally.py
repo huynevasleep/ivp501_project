@@ -28,7 +28,7 @@ def test_otsu_splits_bimodal():
 
 
 def test_otsu_matches_opencv_reference():
-    """Self-implemented Otsu agrees with cv2.THRESH_OTSU on a bimodal image (within 1 bin)."""
+    """Self-implemented Otsu agrees with cv2.THRESH_OTSU on a bimodal image (within 2 gray levels)."""
     rng = np.random.default_rng(0)
     img = np.clip(np.r_[rng.normal(70, 12, 4000), rng.normal(185, 15, 6000)], 0, 255).astype(np.uint8)
     reference, _ = cv2.threshold(img.reshape(100, 100), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)

@@ -84,7 +84,7 @@ const cover = [
 // ---------- abstract ----------
 const abstract = [
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 240, after: 240 }, children: [new TextRun({ text: 'Tóm tắt (Abstract)', font: ARIAL, size: 32, bold: true })] }),
-  P('Báo cáo trình bày hệ thống tách pha bóng pickleball từ video trận đấu và ghép toàn bộ các pha (kèm timecode bắt đầu/kết thúc) thành video highlight, chỉ dùng kỹ thuật xử lý ảnh kinh điển chạy CPU. Nhận xét then chốt: trong lúc giao tranh, đài truyền hình luôn dùng camera cố định quay toàn sân và khán giả im lặng. Hệ thống nhận camera sân bằng khuôn biên Canny của từng cụm K-means (so khớp Dice hai chiều, xác nhận vạch sân bằng biến đổi Hough), nhận khoảng im lặng bằng ngưỡng Otsu trên âm lượng, làm mượt chuỗi quyết định rồi xuất từng pha trọn vẹn bằng FFmpeg. Trên trận thử 67 phút, hệ thống tách được 154 pha (trung vị 6,3 giây); trên hai video thực tế một pha, pipeline quỹ đạo vẽ được đường bay của bóng tới điểm nảy và đề xuất ứng viên bóng nảy/bóng chết theo luật hai lần nảy. Thuật toán Otsu được nhóm tự cài đặt và kiểm chứng khớp OpenCV. Toàn bộ 39 kiểm thử tự động pass; mọi số liệu kèm script chạy lại. Hạn chế chính — chưa có nhãn người gán để đo F1 và ranh giới pha còn gián tiếp — được phân tích cùng hướng phát triển.'),
+  P('Báo cáo trình bày hệ thống tách pha bóng pickleball từ video trận đấu và ghép toàn bộ các pha (kèm timecode bắt đầu/kết thúc) thành video highlight, chỉ dùng kỹ thuật xử lý ảnh kinh điển chạy CPU. Nhận xét then chốt: trong lúc giao tranh, đài truyền hình luôn dùng camera cố định quay toàn sân và khán giả im lặng. Hệ thống nhận camera sân bằng khuôn biên Canny của từng cụm K-means (so khớp Dice hai chiều, xác nhận vạch sân bằng biến đổi Hough), nhận khoảng im lặng bằng ngưỡng Otsu trên âm lượng, làm mượt chuỗi quyết định rồi xuất từng pha trọn vẹn bằng FFmpeg. Trên trận thử 67 phút, hệ thống tách được 154 pha (trung vị 6,3 giây); trên video thực tế, pipeline quỹ đạo vẽ được đường bay của bóng tới điểm nảy khi giới hạn vùng sân và đề xuất ứng viên bóng nảy/bóng chết theo luật hai lần nảy. Thuật toán Otsu được nhóm tự cài đặt và kiểm chứng khớp OpenCV. Toàn bộ 39 kiểm thử tự động pass; số liệu trên video thực tế và kiểm thử đều kèm script chạy lại. Hạn chế chính — chưa có nhãn người gán để đo F1 và ranh giới pha còn gián tiếp — được phân tích cùng hướng phát triển.'),
   new Paragraph({ children: [new PageBreak()] }),
 ];
 
@@ -165,7 +165,7 @@ const phuongPhap = [
       ['Hình thái học giãn/co, mở/đóng', 'Bài 6', 'Dung sai so khớp biên 1 px; dọn mặt nạ; làm mượt chuỗi 1-D'],
       ['Gán nhãn thành phần liên thông', 'Bài 5', 'Tách cầu thủ; ứng viên bóng'],
       ['Trừ ảnh / trừ khung liên tiếp', 'Bài 3', 'Mặt nạ chuyển động cho ứng viên bóng'],
-      ['Lọc nhiễu không gian; NLM', 'Bài 4', 'Trước Canny; trước tăng nét ảnh'],
+      ['Lọc nhiễu không gian (NLM: mở rộng)', 'Bài 4', 'Trước Canny; trước tăng nét ảnh'],
       ['Wiener (nghịch đảo điều hòa) + unsharp', 'Bài 5', 'Giảm mờ, tăng nét ảnh vận động viên'],
       ['Luồng quang Farnebäck; K-means', 'Mở rộng tự nghiên cứu', 'Hoạt động trên sân (video tự quay); gom góc máy'],
     ]),
@@ -176,10 +176,10 @@ const phuongPhap = [
 const thucNghiem = [
   H1('4. Thực nghiệm và kết quả'),
   H2('4.1. Dữ liệu và thiết lập'),
-  bullet('Trận pickleball phát sóng 67 phút, 854×480, 29,97 fps — dữ liệu chính để đo pipeline tách pha.'),
+  bullet('Trận pickleball phát sóng 67 phút, 854×480, 29,97 fps — dữ liệu chính để đo pipeline tách pha (video do nhóm thu thập; link tải và ngày truy cập ghi trong README của repo).'),
   bullet('Hai video một-pha thực tế (YouTube Shorts, tải bằng yt-dlp, truy cập 09/11/2026): (1) youtube.com/shorts/WQo-yvMozaI — trong nhà, đánh đôi, 1080×1920, 24 fps, 14,3 s; (2) youtube.com/shorts/eqp3tj8Y_Hg — ngoài trời có mái, 720×1280, 30 fps, 12,4 s.'),
   bullet('Video tổng hợp trong bộ kiểm thử: sân vẽ vạch + người di chuyển; quả bóng chuyển động parabol nảy hai lần.'),
-  P('Môi trường: Python 3.13+, OpenCV, scikit-learn, SciPy, FFmpeg (imageio-ffmpeg), CPU. Phân tích trận 67 phút (8.022 khung mẫu) mất 107 giây; xuất highlight 10% mất 14 giây. Mọi kết quả chạy lại bằng các lệnh ở Phụ lục B.'),
+  P('Môi trường: Python 3.13+, OpenCV [11], scikit-learn, SciPy, FFmpeg (imageio-ffmpeg), CPU. Phân tích trận 67 phút (8.022 khung mẫu) mất 107 giây; xuất highlight 10% mất 14 giây. Mọi kết quả chạy lại bằng các lệnh ở Phụ lục B.'),
   H2('4.2. Tách pha trên trận 67 phút'),
   P('Hệ thống tách được 154 pha; độ dài p10/trung vị/p90/max = 1,5 / 6,3 / 18,5 / 33,5 giây; tổng 21,9 phút chơi trên 37,5 phút camera sân. Ba cụm sân tự nhận có Dice tự thân 0,89–0,92 với khuôn 7.500–7.800 điểm biên và 5–14 đường Hough; chín cụm còn lại khớp ≤ 0,13. Khung sân đạt điểm 0,88 (p10) – 0,92 (trung vị), khung khác trung vị 0,42; ngưỡng Otsu 0,66 tách gọn hai nhóm. Ngưỡng âm lượng Otsu −26,3 dBFS (camera sân lúc im −30,4 dB; lúc ồn −21,8 dB; cảnh khác −21,1 dB, theo trung vị). Kiểm tra bằng mắt các pha được chọn: bắt đầu đúng lúc chuẩn bị giao bóng, kết thúc sau tiếng reo.'),
   ...img('img/do_dai_pha.png', 560, 196, 'Phân bố độ dài 154 pha tách được trên trận thử 67 phút.'),
@@ -225,7 +225,7 @@ const thaoLuan = [
 // ---------- 6. Kết luận ----------
 const ketLuan = [
   H1('6. Kết luận'),
-  P('Nhóm xây dựng hệ thống hoàn chỉnh tách pha bóng pickleball và dựng highlight trọn pha chỉ bằng kỹ thuật xử lý ảnh kinh điển: Canny + khuôn biên + Hough nhận camera sân, Otsu tự cài (kiểm chứng với OpenCV) chọn mọi ngưỡng, làm mượt chuỗi quyết định và luật đệm cho timecode từng pha; pipeline quỹ đạo vẽ đường bay của bóng và đề xuất ứng viên bóng nảy/bóng chết theo luật hai lần nảy. Trên trận thử 67 phút hệ thống tách 154 pha trọn vẹn (so với 519 lát cắt 1 giây của baseline); trên video thực tế quỹ đạo bám đúng bóng khi giới hạn vùng sân. Toàn bộ 39 kiểm thử pass và mọi số liệu kèm script chạy lại. Đóng góp lớn nhất về phương pháp làm việc là ranh giới bằng chứng rõ ràng: hệ thống phân biệt điều đo được, điều kiểm bằng mắt và điều cần người xác nhận — nền tảng để các bước tự động hóa tiếp theo thay thế dần từng khối mà không phá vỡ độ tin cậy.'),
+  P('Nhóm xây dựng hệ thống hoàn chỉnh tách pha bóng pickleball và dựng highlight trọn pha chỉ bằng kỹ thuật xử lý ảnh kinh điển: Canny + khuôn biên + Hough nhận camera sân, Otsu tự cài (kiểm chứng với OpenCV) chọn mọi ngưỡng, làm mượt chuỗi quyết định và luật đệm cho timecode từng pha; pipeline quỹ đạo vẽ đường bay của bóng và đề xuất ứng viên bóng nảy/bóng chết theo luật hai lần nảy. Trên trận thử 67 phút hệ thống tách 154 pha trọn vẹn (so với 519 lát cắt 1 giây của baseline); trên video thực tế quỹ đạo bám đúng bóng khi giới hạn vùng sân. Toàn bộ 39 kiểm thử pass; số liệu trên video thực tế và kiểm thử kèm script chạy lại, riêng các số đo trận 67 phút là kết quả đo của nhóm trên một trận (việc mở: script tái lập trọn gói). Đóng góp lớn nhất về phương pháp làm việc là ranh giới bằng chứng rõ ràng: hệ thống phân biệt điều đo được, điều kiểm bằng mắt và điều cần người xác nhận — nền tảng để các bước tự động hóa tiếp theo thay thế dần từng khối mà không phá vỡ độ tin cậy.'),
 ];
 
 // ---------- Tài liệu tham khảo ----------
@@ -259,7 +259,7 @@ const phuLuc = [
       ['Nguyễn Hồ Công Anh', 'Thuật toán tách pha; đo đạc trận 67 phút; báo cáo kỹ thuật'],
       ['Đoàn Nguyễn Tuấn Anh', 'QC, kiểm thử tự động; xuất video + timecode; video demo'],
     ]),
-  P([{ t: 'Mã nguồn: ', bold: true }, { t: 'github.com/huynevasleep/ivp501_project (nhánh qc/rally-highlights-review). Mọi thành viên có commit; báo cáo QC nội bộ và các việc mở nằm trong thư mục reports/.' }]),
+  P([{ t: 'Mã nguồn: ', bold: true }, { t: 'github.com/huynevasleep/ivp501_project (nhánh qc/rally-highlights-review). Phân công ở bảng trên đối chiếu được với lịch sử commit của repo; báo cáo QC nội bộ và các việc mở nằm trong thư mục reports/.' }]),
   H2('Phụ lục B. Hướng dẫn chạy lại'),
   P('Cài đặt và chạy toàn bộ kiểm thử, giao diện và các script tái lập số liệu:'),
   ...['python3 -m venv .venv && .venv/bin/pip install -r requirements.txt',
@@ -268,7 +268,7 @@ const phuLuc = [
       '.venv/bin/python reports/qc/qc_experiments.py        # ca biên nhận camera sân',
       '.venv/bin/python reports/qc/danh_gia_video_that.py <video.mp4> --roi 0.05,0.3,0.85,0.95',
      ].map(c => new Paragraph({ spacing: { line: 276 }, shading: { type: ShadingType.CLEAR, fill: 'F2F2F2' }, children: [new TextRun({ text: c, font: 'Courier New', size: 20 })] })),
-  P('Video nguồn không kèm theo repo (dung lượng/bản quyền); URL và ngày truy cập ở mục 4.1. Thư mục kết quả của mỗi lần chạy nằm trong runs/.'),
+  P('Video nguồn không kèm theo repo (dung lượng/bản quyền): URL hai video Shorts ở mục 4.1; link tải trận 67 phút ghi trong README của repo. Thư mục kết quả của mỗi lần chạy nằm trong runs/.'),
   H2('Phụ lục C. Khai báo sử dụng công cụ AI'),
   P('Theo quy định học thuật của môn, nhóm khai báo: có sử dụng công cụ AI Claude Code (Anthropic) với vai trò trợ lý lập trình trong các việc — rà soát/QC mã nguồn và báo cáo (đối chiếu từng khẳng định với code, phát hiện và sửa một lỗi nhận camera sân kèm test hồi quy), viết bổ sung phần phát hiện bóng nảy/bóng chết và các kiểm thử tổng hợp, viết script đánh giá trên video thực tế, dàn trang báo cáo này theo template và dựng video demo bằng Remotion. Toàn bộ thiết kế thuật toán gốc, số liệu và kết luận do nhóm kiểm soát; mọi thành viên nắm và giải thích được mã nguồn khi bảo vệ. Lịch sử commit ghi rõ các commit có hỗ trợ AI (Co-Authored-By).'),
 ];

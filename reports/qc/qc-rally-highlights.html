@@ -85,7 +85,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <tbody>
 <tr>
 <td><code>.venv/bin/python -m pytest -q</code></td>
-<td><strong>38 passed</strong> (33 + 2 skipped ban đầu; 36 sau test hồi quy mục 3.1; 38 sau 2 test bóng nảy/bóng chết mục 6.1)</td>
+<td><strong>39 passed</strong> (33 + 2 skipped ban đầu; 36 sau test hồi quy mục 3.1; 38 sau 2 test bóng nảy/bóng chết mục 6.1; 39 sau test kiểm chứng Otsu với OpenCV <code>test_otsu_matches_opencv_reference</code>)</td>
 </tr>
 <tr>
 <td><code>.venv/bin/python smoke_test.py</code></td>
@@ -403,7 +403,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><strong><code>bounce_candidate</code> (bóng nảy):</strong> vận tốc dọc màn hình đổi dấu từ rơi xuống sang bật lên trên một track liên tục, ngưỡng mặc định 0,2 % chiều cao khung (để nhiễu trọng tâm ở video phân giải cao không bị tính).</li>
 <li><strong><code>dead_ball_candidate</code> (bóng chết, luật hai lần nảy):</strong> lần nảy thứ hai trong ≤ 2,5 s sau lần nảy trước mà <strong>không có</strong> ứng viên đổi hướng (cú chạm vợt khả dĩ) ở giữa; chuỗi nảy được reset khi đổi hướng, mất dấu, cắt cảnh hoặc track mới.</li>
 </ul>
-<p>Chứng minh trên video tổng hợp (bóng parabol nảy 2 lần, 24 fps): đúng 1 <code>dead_ball_candidate</code> tại lần nảy thứ hai; chèn một cú đảo hướng ngang giữa hai lần nảy thì không còn bóng chết nào — <code>tests/test_evidence.py::test_two_bounces_without_paddle_hit_flag_a_dead_ball</code> và <code>::test_a_direction_change_between_bounces_resets_the_dead_ball_count</code>. Toàn bộ suite: <strong>38 passed</strong>.</p>
+<p>Chứng minh trên video tổng hợp (bóng parabol nảy 2 lần, 24 fps): đúng 1 <code>dead_ball_candidate</code> tại lần nảy thứ hai; chèn một cú đảo hướng ngang giữa hai lần nảy thì không còn bóng chết nào — <code>tests/test_evidence.py::test_two_bounces_without_paddle_hit_flag_a_dead_ball</code> và <code>::test_a_direction_change_between_bounces_resets_the_dead_ball_count</code>. Toàn bộ suite: <strong>39 passed</strong> (test thứ 39 là kiểm chứng Otsu tự cài với OpenCV, thêm khi dựng báo cáo nộp).</p>
 <h3 id="62-anh-gia-tren-hai-video-that-youtube-shorts-moi-video-mot-pha-camera-on">6.2 Đánh giá trên hai video thật (YouTube Shorts, mỗi video một pha, camera đơn)</h3>
 <p>Video (tải bằng yt-dlp về <code>video_thu_nghiem/</code>, không commit): ① https://www.youtube.com/shorts/WQo-yvMozaI — trong nhà, đôi, 1080×1920, 24 fps, 14,3 s; ② https://www.youtube.com/shorts/eqp3tj8Y_Hg — ngoài trời có mái, 720×1280, 30 fps, 12,4 s. Lệnh chạy lại: <code>.venv/bin/python reports/qc/danh_gia_video_that.py &lt;video&gt; [--roi 0.05,0.3,0.85,0.95]</code>; overlay, CSV và ảnh mốc nằm trong <code>runs/qc_eval/</code>.</p>
 <div class="tbl"><table>

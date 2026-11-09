@@ -50,7 +50,7 @@ export const RESULTS = [
   { value: '154', label: 'pha tách được (trận 67 phút)' },
   { value: '6,3 s', label: 'độ dài pha trung vị' },
   { value: '21,9 ph', label: 'tổng thời lượng các pha' },
-  { value: '38/38', label: 'kiểm thử tự động pass' },
+  { value: '39/39', label: 'kiểm thử tự động pass' },
 ];
 
 export const HONEST = [
