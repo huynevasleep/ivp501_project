@@ -119,6 +119,21 @@ def test_court_cameras_from_edges_alone():
     assert score[:30].min() > .8 and score[30:].max() < .3
 
 
+def test_single_cluster_video_keeps_its_court_camera():
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(0)
+    edges = np.array([np.packbits(_edges(_court_frame(rng))) for _ in range(30)])
+    score, court_ids = court_cameras(edges, [0]*30)      # one fixed court camera, one cluster
+    assert court_ids == [0]
+    assert score.min() > .8
+    blobs = []
+    for _ in range(30):                                   # one static cluster with no straight lines
+        img = np.zeros((180, 320), np.uint8); cv2.circle(img, (160, 90), 50, 255, -1)
+        blobs.append(np.packbits(_edges(cv2.GaussianBlur(img, (9, 9), 0))))
+    _, court_ids = court_cameras(np.array(blobs), [0]*30)
+    assert court_ids == []
+
+
 def test_detect_rallies_uses_edge_court_score():
     df, meta = timeline(MATCH)
     df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5

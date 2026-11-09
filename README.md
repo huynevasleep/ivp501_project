@@ -11,6 +11,7 @@ Người và agent làm tiếp phần highlight/ảnh vận động viên: đọ
 | Báo cáo | Tác giả | Nội dung | Tình trạng (08/11/2026) |
 |---|---|---|---|
 | [`reports/anhnhc/tach-pha-bong.md`](reports/anhnhc/tach-pha-bong.md) (bản HTML cùng thư mục, sinh từ file `.md`) | anhnhc | 3 mục tiêu đề tài; thuật toán tách pha bóng đang chạy (camera sân + khán giả im, Otsu), các bước, hình và số đo trên trận pickleball 67 phút; kế hoạch bắt bóng–vợt và tăng nét/giảm mờ ảnh | Mục tiêu 2 (ghép pha có timecode) đã chạy. Mục tiêu 1 mới có bản nền gián tiếp, **chưa nhận bóng/vợt**. Mục tiêu 3 mới chọn khung (~4/12 ảnh dùng được), chưa tăng nét. **Việc mở V1–V6** (mục 7): tìm video ≥ 1080p, gán nhãn người, bắt bóng, nhận cú chạm vợt/chạm sàn, giữ cảnh camera lia, tăng nét ảnh góc ngang |
+| [`reports/qc/qc-rally-highlights.md`](reports/qc/qc-rally-highlights.md) (bản HTML cùng thư mục) | QC | Đối chiếu từng khẳng định của hai báo cáo trên với code và test: bảng 14 bước chọn timecode highlight ↔ code ↔ test; map thuật toán môn học; thí nghiệm ca biên `reports/qc/qc_experiments.py` | 36 test pass. **Bắt và sửa 1 lỗi** (video một cụm camera → 0 pha); bắt các số đo trận 67 phút chưa tái lập được và các chỗ tài liệu lệch code. **Việc mở Q1–Q4** (mục 5) |
 
 ## Bản nâng cấp thực nghiệm
 
@@ -34,7 +35,7 @@ Truy cập **Rally phát sóng / video tổng quát** ở mục đích sử dụ
 
 Dành cho video phát sóng môn vợt (pickleball, tennis…). Highlight chỉ gồm **trọn pha bóng**, không cắt ngang:
 
-- Camera quay sân: gom khung theo bố cục màu thu nhỏ (16×9, Lab), nhóm có chuyển động thấp (Otsu trên log chuyển động) là camera cố định quay sân.
+- Camera quay sân: gom khung theo bố cục màu thu nhỏ (16×9, Lab) bằng K-means; mỗi cụm có khuôn biên Canny (trung vị bản đồ biên). Cụm cố định = khung khớp khuôn của chính cụm (Dice hai chiều, Otsu trên log self-match); cụm camera sân = cụm cố định mà khuôn có đường thẳng Hough (vạch sân, lưới). Phân tích cũ chưa có khuôn biên dùng fallback chuyển động thấp (Otsu trên log optical flow).
 - Pha bóng: khoảng lặng khi camera sân đang quay (khán giả im khi đánh, reo khi hết pha); ngưỡng lặng do Otsu chọn trên âm lượng của chính video. Mỗi pha thêm 1 giây trước (không lùi quá đầu cảnh sân) và 2 giây sau để có cú phát bóng và tiếng reo.
 - Điểm pha: trung bình thứ hạng độ dài pha và độ lớn tiếng reo trong 3 giây sau. Chọn pha điểm cao nhất vừa ngân sách thời lượng.
 - Ảnh cầu thủ (thử nghiệm): trừ nền MOG2 + gán nhãn thành phần liên thông, chân phải đứng trên màu mặt sân, bám cùng một người qua các khung; lúc "ra lực" = đổi dáng mạnh nhất (1 − IoU mặt nạ hai khung liên tiếp), lấy khung có phương sai Laplacian lớn nhất quanh đó.
@@ -95,5 +96,4 @@ Chưa có kết quả thực nghiệm trên TVSum/SumMe; không điền điểm 
 ```
 Kiểm thử synthetic xác nhận chức năng, không đánh giá chất lượng tóm tắt đối với người xem. File requirements-lock.txt ghi môi trường đã kiểm tra; dùng `pip install -r requirements-lock.txt` để tái lập.
 
-
-oh no, anh cần xem highlight pick thì phải là những đoạn tranh bóng ác liệt hấp dẫn, hoặc phát bóng ăn điểm trực tiếp. nó phải full cái đoạn đó chứ không phải cứ cắt 1-2s rồi chuyển cảnh đâu em, hiện tại anh xem thấy nó bị cắt ngay đoạn chuẩn bị phát bóng, chuyển cảnh liên tục chưa có gì gọi là highlight nó chỉ đang là rút ngắn video lại và không có ý nghĩa gì trong những đoạn rút ngắn
+> Góp ý của người xem (đã chuyển thành yêu cầu, là lý do có chế độ "trọn pha" ở mục 3.2 của báo cáo tách pha): highlight pickleball phải là những đoạn tranh bóng hấp dẫn hoặc phát bóng ăn điểm trực tiếp, lấy **trọn** đoạn đó; bản cắt 1–2 giây rồi chuyển cảnh cắt ngay lúc chuẩn bị phát bóng chỉ là rút ngắn video, không phải highlight.

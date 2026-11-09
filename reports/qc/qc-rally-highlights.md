@@ -1,0 +1,126 @@
+# QC nhánh rally-highlight: đối chiếu từng khẳng định với code và bằng chứng
+
+*QC · 09/11/2026 · nhánh `qc/rally-highlights-review` (tách từ `origin/rally-highlight`, commit `b77f853`)*
+
+Nhiệm vụ QC: kiểm tra tính chính xác của các thuật toán đã khai báo (detect biên, detect mặt sân, detect hình học/vạch sân, bóng chạm vợt, bóng chết), kiểm tra rằng **từng bước chọn timecode highlight đều mô tả được và chứng minh được bằng code + test**, và bắt mọi khẳng định trong báo cáo mà repo không chứng minh được.
+
+**Cách kiểm:** đọc đối chiếu toàn bộ `core.py`, `pickleball.py`, `rally_evidence.py`, `photo_finish.py`, `rally_export.py`, `rally_preview.py`, `match_ui.py`, `project_tools_ui.py`, `app.py` với hai báo cáo `reports/anhnhc/tach-pha-bong.md` và `reports/project-audit.md`; chạy lại toàn bộ kiểm thử và viết thêm thí nghiệm ca biên (`reports/qc/qc_experiments.py`). Video trận 67 phút **không có trong repo**, nên các con số đo trên trận thật chỉ đối chiếu được về mô tả thuật toán, không chạy lại được trên máy QC (xem mục 4.2).
+
+## 1. Kết quả chạy trên máy QC (macOS, Python 3.14, venv từ `requirements.txt`)
+
+| Lệnh | Kết quả |
+|---|---|
+| `.venv/bin/python -m pytest -q` | **36 passed** (33 passed + 2 skipped trước khi chạy smoke test tạo fixture; 35 sau smoke test; 36 sau khi QC thêm test hồi quy mục 3.1) |
+| `.venv/bin/python smoke_test.py` | PASS: cuts, duration budget, MP4 export, Streamlit initial render |
+| `.venv/bin/python reports/qc/qc_experiments.py` | 4/4 ca PASS **sau khi sửa lỗi mục 3.1** (trước khi sửa: ca "một cụm duy nhất" FAIL) |
+
+## 2. Các khẳng định ĐÃ chứng minh được
+
+### 2.1 Từng bước chọn timecode highlight (mục 3.2 báo cáo tách pha) ↔ code ↔ test
+
+Yêu cầu "trong report phải mô tả được từng bước mình chọn đoạn timecode đó làm highlight" **đạt** đối với bản nền gián tiếp: chuỗi dưới đây là đường đi đầy đủ từ video đến từng cặp `start`/`end` trong `report.json`, mỗi bước có code và test tương ứng.
+
+| # | Bước (như báo cáo mô tả) | Code | Bằng chứng |
+|---|---|---|---|
+| 1 | Lấy mẫu 2 khung/giây, thu 320×180 | `core.analyze` (`grab`/`retrieve`, `step=round(fps/2)`) | đọc code khớp |
+| 2 | Bố cục màu Lab 16×9 → vector 432 số | `core.py` dòng 131; 16·9·3 = 432 ✓ | khớp số trong báo cáo |
+| 3 | **Giảm nhiễu** Gauss 3×3 rồi **detect biên** Canny 50/150; nén bit ≈7 KB/khung | `core._edges`; 320·180/8 = 7 200 byte ✓ | khớp số trong báo cáo |
+| 4 | Âm lượng RMS cửa sổ 0,5 s, dBFS, mono 8 kHz | `core.audio_loudness` (cửa sổ = `step/fps` = 0,5 s **khi** lấy mẫu 2 fps) | `test_otsu_splits_bimodal` cho phần ngưỡng |
+| 5 | K-means 12 cụm bố cục màu, seed 42 | `core.py` dòng 149 (`min(12, …)`, `random_state=42`) | khớp |
+| 6 | **Detect mặt sân/hình học**: khuôn biên mỗi cụm = trung vị bản đồ biên; độ khớp = Dice hai chiều recall/precision (dung sai lệch 1 pixel); cụm cố định = phía cao Otsu trên log self-match; cụm camera sân = cụm cố định có **đường thẳng Hough** (vạch sân, lưới) | `core.edge_dice`, `core.court_cameras` | `test_court_cameras_from_edges_alone` (cụm sân nhận đúng, cảnh quay tay và cảnh tĩnh không vạch bị loại); thí nghiệm QC ca 1, 3, 4 |
+| 7 | Khung sân = điểm khớp cao nhất với các khuôn sân, vượt ngưỡng Otsu | `core.analyze` (`court_score`, `court_threshold`), `core.detect_rallies` | `test_detect_rallies_uses_edge_court_score` |
+| 8 | Khán giả im = phía thấp Otsu trên âm lượng cả trận | `core.detect_rallies` (`quiet`) | `test_rallies_are_quiet_court_stretches_with_serve_and_reaction` |
+| 9 | **Làm mượt chuỗi thời gian**: pha = sân AND im; lấp lỗ ≤ 1 s; bỏ đoạn < 1,5 s | `detect_rallies` (`gap=1`, `min_len=1.5`, `_runs`) | cùng test trên (0,5 s im không thành pha) |
+| 10 | Đệm +1 s trước (không lùi quá đầu cảnh sân) và +2 s sau | `detect_rallies` (`pre`, `post`, vòng lùi `lead`) | `test_pre_roll_does_not_reach_into_the_close_up` |
+| 11 | Hai pha chồng phần đệm → cắt giữa khoảng nghỉ | `core.py` dòng 215–216 | `test_close_padding_is_split_in_the_pause` |
+| 12 | Điểm pha = trung bình thứ hạng phần trăm của (độ dài pha, âm lượng lớn nhất 3 s sau pha) | `core._rank`, `reaction=3` | `test_scores_reward_long_rally_and_loud_reaction` |
+| 13 | Chọn pha **trọn hoặc bỏ** theo ngân sách (greedy hoặc knapsack 0/1) | `core.select(mode='rally')`, `core.knapsack_select` | `test_select_keeps_whole_rallies_within_budget`, `test_ratio_one_keeps_every_rally` |
+| 14 | Ghi `start`/`end` (giây) vào `report.json`; ffmpeg cắt từng pha rồi nối đúng thứ tự; có timecode nguồn → highlight | `app.py` dòng 49–50, `core.export_video`, `rally_evidence.timecode_table`, `rally_export.export_individual` | `test_each_file_contains_only_its_rally_and_zip_is_current`, `test_all_mode_never_discards_eligible_rallies` |
+
+Pipeline pickleball cục bộ (`pickleball.py`, góc máy cố định tự quay) cũng mô tả được từng bước: optical flow Farneback trừ vector trung vị (khử chuyển động máy quay) → chuẩn hóa → **làm mượt trung vị trượt** → hysteresis hai ngưỡng (0,32 / 60%) → lấp khoảng nghỉ ≤ 2 s → bỏ hoạt động < 4 s → đệm trước/sau chặn ở chuyển cảnh → khoảng > 90 s gắn `needs_review`, không tự chọn. Test: `tests/test_pickleball.py` (6 test).
+
+### 2.2 Thuật toán môn học dùng ở đâu (trả lời "dùng các thuật toán nào đã học")
+
+| Kỹ thuật đã học | Vị trí trong code | Vai trò |
+|---|---|---|
+| **Detect biên**: Canny (Gauss 3×3 trước) | `core._edges` | nhận camera sân bằng khuôn biên |
+| **Detect hình học**: biến đổi Hough (đường thẳng) | `core.court_cameras` | xác nhận khuôn có vạch sân/mép lưới |
+| **Detect mặt sân** (màu sàn) | `core._floor_mask` (histogram hue–sat phần dưới khung + morphological close) | lọc "chân đứng trên sàn" khi chọn ảnh cầu thủ |
+| **Giảm nhiễu**: Gauss, mở/đóng hình thái học, Non-Local Means | `core._edges`, `core.best_shots`, `photo_finish.finish_photo` | trước Canny; dọn mặt nạ trừ nền; khử nhiễu ảnh trước tăng nét |
+| **Làm mượt tín hiệu thời gian**: trung vị trượt; lấp lỗ/bỏ run ngắn | `pickleball.propose_rallies`; `core.detect_rallies` | chống nhấp nháy khi quyết định pha |
+| **Ngưỡng tự động Otsu** | `core.otsu_threshold` (3 chỗ: cụm cố định, khung sân, âm lượng) | không phải chỉnh tay theo video |
+| **Phân cụm K-means** | `core.analyze` (bố cục Lab 16×9) | gom góc camera |
+| **Trừ nền**: MOG2; sai khác khung | `core.best_shots`; `rally_evidence.ball_candidates` | tách người chuyển động; tách vật chuyển động nhỏ |
+| **Vẽ quỹ đạo + bám vật**: nối ứng viên bằng dự đoán vận tốc (gating), polyline chồng khung, reset khi mất dấu/cắt cảnh | `rally_evidence.track_ball` | bằng chứng quỹ đạo bóng ở FPS gốc, kèm CSV và ảnh mốc đổi hướng |
+| **Tăng nét**: unsharp mask; **giảm mờ**: lọc nghịch đảo có regularization với PSF vệt thẳng (họ Wiener); độ nét = phương sai Laplacian | `photo_finish.finish_photo` | ảnh góc ngang; lưu cả ảnh gốc và thông số JSON |
+| **Optical flow Farneback** | `pickleball.analyze_match`, `core.analyze` | hoạt động trên sân; fallback nhận camera cố định |
+
+### 2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn
+
+- Định nghĩa trong báo cáo (mục 3.1) khớp luật hai lần nảy của pickleball: một lần bóng chạm sàn **không** kết thúc pha; pha chỉ đóng khi bóng chạm sàn mà không còn cú chạm vợt nào sau đó (tức nảy lần hai/bóng chết), ra ngoài, hoặc vào lưới.
+- Code tôn trọng đúng định nghĩa đó ở phần sự kiện: `rally_evidence.rallies_from_events` chỉ ghép **cặp giao bóng–kết thúc đã được người xác nhận**; `bounce` và `occluded` không bao giờ tự đóng pha (`test_bounces_and_lost_ball_do_not_end_rally`); pha mở hoặc chưa xác nhận không được xuất (`test_unconfirmed_and_open_rallies_are_not_exported`).
+- "Chuyển góc máy không phải kết thúc pha": `detect_rallies` chỉ lấp lỗ ≤ 1 s, nên về mặt code chuyển cảnh ngắn giữa pha không cắt pha; chuyển cảnh dài hơn vẫn cắt sai — báo cáo đã tự khai ở ví dụ 10:55 và việc mở V5/V7.
+
+## 3. Những điểm QC BẮT
+
+### 3.1 LỖI (đã tái lập, đã sửa trên nhánh này): video một cụm camera duy nhất → 0 pha
+
+`court_cameras` chọn cụm cố định bằng Otsu trên log self-match rồi so sánh **`m > cut`**. Khi K-means chỉ trả về **một** cụm, `otsu_threshold` của một giá trị trả về chính giá trị đó, phép so sánh ngặt loại luôn cụm duy nhất → không có camera sân → `detect_rallies` trả **0 pha**, dù toàn video là camera sân có vạch Hough rõ. Nhánh fallback theo chuyển động dùng `<=` (bao gồm) nên không bị — hai nhánh không nhất quán.
+
+- Tái lập: `reports/qc/qc_experiments.py` ca 2 (FAIL tại `b77f853`).
+- Sửa: một cụm duy nhất thì chỉ cần qua cổng Hough (`core.py`, hàm `court_cameras`); cảnh tĩnh không vạch và cảnh quay tay vẫn bị loại (ca 3–4 PASS).
+- Test hồi quy: `tests/test_rally.py::test_single_cluster_video_keeps_its_court_camera`.
+- Mức ảnh hưởng: thấp với trận phát sóng nhiều góc (K-means luôn ra nhiều cụm), nhưng chặn đúng loại video nhóm định tự quay một góc máy (việc mở V1). Chưa kiểm chứng lại trên trận 67 phút vì repo không có video (mục 4.2).
+
+### 3.2 Chưa chứng minh được: timecode highlight hiện tại KHÔNG đến từ bóng–vợt–sàn
+
+Đây là khoảng trống lớn nhất giữa mục tiêu đề tài và bằng chứng hiện có, và cả hai báo cáo đều **đã tự khai đúng** — QC xác nhận khai báo khớp code:
+
+- Không có detector mặt vợt, không có detector bóng chạm sàn, không có bộ đếm "nảy hai lần". Ranh giới pha của highlight đang lấy từ *camera sân + khán giả im* (gián tiếp), không phải từ sự kiện bóng.
+- `direction_change_candidate` (cosine hai vận tốc < 0,3 trong `track_ball`) **không phân biệt** chạm vợt / chạm sàn / nhiễu bám; overlay cũng ghi rõ "BALL CANDIDATE – NOT VERIFIED". Ngoài ra, cú nảy mà thành phần ngang của vận tốc chiếm ưu thế có thể không đổi hướng đủ mạnh để cosine < 0,3 — tức ứng viên đổi hướng **không bảo đảm bắt được mọi cú nảy**, chưa nói đến phân loại.
+- Vậy: mọi câu trong báo cáo cuối cùng dạng "highlight được chọn vì bóng chết / vì bóng chạm vợt lúc X" đều **chưa chứng minh được bằng pipeline tự động**; chỉ được phép nói vậy cho các pha đi qua bảng xác nhận sự kiện của người xem (`rallies_from_events`). Ai viết report thuyết trình cần giữ đúng ranh giới này.
+
+### 3.3 Chưa chứng minh được: các con số đo trên trận 67 phút không tái lập được từ repo
+
+Mục 7 của báo cáo tách pha tự đặt luật *"Số liệu phải đo được và kèm lệnh hoặc script để chạy lại"*, nhưng chính báo cáo đang vi phạm luật đó ở các điểm sau (QC đã grep toàn repo, không có script nào sinh ra các số/hình này):
+
+- "61/154 pha có đổi camera giữa pha, tổng 87 lần", ví dụ phút 10:55 — không có script đếm số lần đổi camera trong pha.
+- Toàn bộ 7 hình trong `reports/anhnhc/img/` (phân bố âm lượng, dòng thời gian, cụm camera, vật màu vàng…) — không có script vẽ lại.
+- Dice 0,89–0,92, ngưỡng Otsu −26,3 dBFS, 154 pha, "4/12 ảnh dùng được", "54–176 vật màu vàng mỗi khung" — không có `features.csv`/`report.json` của lần chạy đó trong repo, cũng không có video (dễ hiểu vì dung lượng/bản quyền, nhưng cần ghi URL + lệnh chạy để người khác tái lập; mục "Dữ liệu và giao thức" của README yêu cầu đúng điều này cho video dùng).
+
+→ Việc mở **Q1** (mục 5): commit script đo + hướng dẫn tái lập, hoặc hạ cấp các con số này trong báo cáo thành "kiểm bằng mắt, chưa tái lập được".
+
+### 3.4 Tài liệu lệch so với code (đã sửa trên nhánh này)
+
+- `README.md` mục "Chế độ thể thao có pha bóng" vẫn mô tả cách nhận camera sân bằng **chuyển động thấp (optical flow)** — đã bị thay bằng khuôn biên Canny từ commit `2087999`. Đã cập nhật mô tả, giữ ghi chú fallback.
+- Cuối `README.md` có một đoạn chat góp ý dán thô ("oh no, anh cần xem highlight pick…"). Đây là góp ý định hình yêu cầu "lấy trọn pha" nên không bỏ nội dung, nhưng đã chuyển thành blockquote có ngữ cảnh.
+- Báo cáo tách pha mục 6 ghi `tests/test_rally.py` có "7 test" — thực tế 10 (nay 11 sau test hồi quy QC). Đã sửa.
+
+### 3.5 Ghi chú nhỏ (chưa sửa, không chặn)
+
+- Báo cáo viết dung sai "cho lệch 1 pixel" chỉ cho chiều recall; code dilate **cả hai chiều** (biên khung cho recall, khuôn cho precision). Nên viết lại cho đúng khi cập nhật báo cáo.
+- "Cửa sổ RMS 0,5 s" chỉ đúng khi lấy mẫu 2 fps (cửa sổ = 1/sample_fps); đổi tốc độ lấy mẫu trên UI thì con số trong báo cáo đổi theo.
+- `cheer_db` đo trong 3 s sau pha có thể dính tiếng giao bóng của pha kế tiếp khi hai pha sát nhau — chấp nhận được cho xếp hạng, nên ghi rõ nếu dùng con số này làm bằng chứng.
+- `ball_candidates` cho phép blob tới `max(100, 0.1% khung)` ≈ 2 000 px ở 1080p — đủ lọt giày/mũ; audit đã khai việc bám nhầm khi khởi tạo lại, giữ nguyên khai báo đó.
+
+## 4. Giới hạn của chính đợt QC này
+
+1. **Toàn bộ kiểm chứng chạy trên dữ liệu tổng hợp.** 36 test + 4 thí nghiệm QC chứng minh thuật toán làm đúng *điều nó khai* trên tín hiệu sạch; không chứng minh độ chính xác trên trận thật. Kết luận "tách đúng 154 pha" vẫn là kiểm bằng mắt của tác giả.
+2. **Không có video trận 67 phút** trong repo nên QC không thể xác nhận các con số của mục 3.2 báo cáo gốc, và không thể đo tác động của sửa lỗi 3.1 lên trận thật (dự đoán: không đổi, vì trận đó có 12 cụm).
+3. QC không đánh giá chất lượng cảm quan của highlight hay ảnh cầu thủ.
+
+## 5. Việc mở sau QC (ai nhận thì ghi tên, theo đúng cơ chế mục 7 của báo cáo tách pha)
+
+| # | Việc | Xong khi | Người nhận |
+|---|---|---|---|
+| Q1 | Script tái lập các con số/hình của báo cáo tách pha (đếm đổi camera trong pha, vẽ lại 7 hình từ `features.csv`) + ghi URL video, lệnh chạy | Chạy một lệnh ra lại đúng các số trong báo cáo, hoặc các số được hạ cấp thành "kiểm bằng mắt" | |
+| Q2 | Chạy lại trận 67 phút trên nhánh đã sửa 3.1, xác nhận số pha không đổi | Ghi số pha trước/sau vào báo cáo tách pha | |
+| Q3 | Thêm vào báo cáo một ví dụ lần vết **một pha cụ thể**: từ `features.csv` chỉ ra court_score và âm lượng từng mẫu so với hai ngưỡng Otsu, phép đệm → ra đúng `start`/`end` trong `report.json` | Có bảng/hình lần vết kèm lệnh chạy lại | |
+| Q4 | Rà soát bản thuyết trình: mọi chỗ nói "bóng chạm vợt/bóng chết quyết định timecode" phải đổi thành "bản nền gián tiếp + sự kiện người xác nhận" (mục 3.2 QC) | Không còn câu nào vượt quá bằng chứng | |
+
+## 6. Sinh lại bản HTML
+
+```bash
+.venv/bin/pip install markdown
+.venv/bin/python reports/build_html.py
+```

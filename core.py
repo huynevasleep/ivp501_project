@@ -82,7 +82,9 @@ def court_cameras(edges, camera):
         stats.append((c, len(idx), match, 0 if lines is None else len(lines), template, wide))
     log_match = np.log(np.clip([s[2] for s in stats], 1e-3, None))
     cut = otsu_threshold(log_match, [s[1] for s in stats])
-    court = [s for s, m in zip(stats, log_match) if m > cut and s[3] > 0]
+    # A single cluster cannot be split by Otsu (the threshold equals its own value),
+    # so a one-camera video relies on the Hough gate alone.
+    court = [s for s, m in zip(stats, log_match) if (len(stats) == 1 or m > cut) and s[3] > 0]
     score = np.zeros(len(camera))
     for k in range(len(camera)):
         e = unpack(k)

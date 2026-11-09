@@ -172,7 +172,7 @@ Giới hạn: video gốc 480p nên ảnh đăng Facebook bị giới hạn đ�
 .venv/bin/python -m streamlit run app.py --server.address 127.0.0.1
 ```
 
-Chọn loại video "Thể thao có pha bóng". Test của phần này ở `tests/test_rally.py` (7 test, dữ liệu tổng hợp).
+Chọn loại video "Thể thao có pha bóng". Test của phần này ở `tests/test_rally.py` (11 test, dữ liệu tổng hợp).
 
 ## 7. Việc mở: ai làm được thì nhận
 

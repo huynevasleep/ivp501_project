@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QC nhánh rally-highlight</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1f2328;--muted:#5d6670;--line:#e3e0d8;--card:#ffffff;--accent:#1565c0;--ok:#2e7d32;--bad:#c62828;--hl:#fff3cd;--code:#f2efe8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--fg:#e6e3dd;--muted:#a0a7ae;--line:#2c3036;--card:#1d2024;--accent:#6ea8ff;--ok:#7cc47f;--bad:#ef8a80;--hl:#3a3320;--code:#24282d}}
+:root[data-theme="dark"]{--bg:#15171a;--fg:#e6e3dd;--muted:#a0a7ae;--line:#2c3036;--card:#1d2024;--accent:#6ea8ff;--ok:#7cc47f;--bad:#ef8a80;--hl:#3a3320;--code:#24282d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 6px}
+h2{font-size:1.3rem;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:28px 0 6px}
+.meta{color:var(--muted);font-size:.92rem;margin-bottom:20px}
+p,li{max-width:72ch}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto}
+pre code{background:none;padding:0}
+.tbl{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:.94rem;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+figure{margin:16px 0 22px}
+figure img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+figcaption{color:var(--muted);font-size:.88rem;margin-top:6px}
+.key{background:var(--hl);border-left:4px solid var(--accent);padding:12px 16px;border-radius:6px;margin:14px 0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0;font-size:.9rem}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 9px}
+.flow b{color:var(--muted);font-weight:400}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+nav{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:18px 0}
+nav ol{margin:4px 0;padding-left:20px}
+nav a{color:var(--accent);text-decoration:none}
+p:has(> img){margin:16px 0 4px}
+p img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
+.tbl table td:first-child{min-width:9em}
+</style>
+</head>
+<body>
+<main>
+<!-- Sinh từ qc-rally-highlights.md bằng reports/build_html.py; sửa file .md rồi chạy lại, đừng sửa tay file này. -->
+<h1 id="qc-nhanh-rally-highlight-oi-chieu-tung-khang-inh-voi-code-va-bang-chung">QC nhánh rally-highlight: đối chiếu từng khẳng định với code và bằng chứng</h1>
+<p><em>QC · 09/11/2026 · nhánh <code>qc/rally-highlights-review</code> (tách từ <code>origin/rally-highlight</code>, commit <code>b77f853</code>)</em></p>
+<nav><strong>Mục lục</strong><ol>
+<li><a href="#1-ket-qua-chay-tren-may-qc-macos-python-314-venv-tu-requirementstxt">1. Kết quả chạy trên máy QC (macOS, Python 3.14, venv từ requirements.txt)</a></li>
+<li><a href="#2-cac-khang-inh-a-chung-minh-uoc">2. Các khẳng định ĐÃ chứng minh được</a><ul>
+<li><a href="#21-tung-buoc-chon-timecode-highlight-muc-32-bao-cao-tach-pha-code-test">2.1 Từng bước chọn timecode highlight (mục 3.2 báo cáo tách pha) ↔ code ↔ test</a></li>
+<li><a href="#22-thuat-toan-mon-hoc-dung-o-au-tra-loi-dung-cac-thuat-toan-nao-a-hoc">2.2 Thuật toán môn học dùng ở đâu (trả lời "dùng các thuật toán nào đã học")</a></li>
+<li><a href="#23-bong-chet-va-ranh-gioi-pha-ung-luat-ung-muc-khiem-ton">2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn</a></li>
+</ul>
+</li>
+<li><a href="#3-nhung-iem-qc-bat">3. Những điểm QC BẮT</a><ul>
+<li><a href="#31-loi-a-tai-lap-a-sua-tren-nhanh-nay-video-mot-cum-camera-duy-nhat-0-pha">3.1 LỖI (đã tái lập, đã sửa trên nhánh này): video một cụm camera duy nhất → 0 pha</a></li>
+<li><a href="#32-chua-chung-minh-uoc-timecode-highlight-hien-tai-khong-en-tu-bongvotsan">3.2 Chưa chứng minh được: timecode highlight hiện tại KHÔNG đến từ bóng–vợt–sàn</a></li>
+<li><a href="#33-chua-chung-minh-uoc-cac-con-so-o-tren-tran-67-phut-khong-tai-lap-uoc-tu-repo">3.3 Chưa chứng minh được: các con số đo trên trận 67 phút không tái lập được từ repo</a></li>
+<li><a href="#34-tai-lieu-lech-so-voi-code-a-sua-tren-nhanh-nay">3.4 Tài liệu lệch so với code (đã sửa trên nhánh này)</a></li>
+<li><a href="#35-ghi-chu-nho-chua-sua-khong-chan">3.5 Ghi chú nhỏ (chưa sửa, không chặn)</a></li>
+</ul>
+</li>
+<li><a href="#4-gioi-han-cua-chinh-ot-qc-nay">4. Giới hạn của chính đợt QC này</a></li>
+<li><a href="#5-viec-mo-sau-qc-ai-nhan-thi-ghi-ten-theo-ung-co-che-muc-7-cua-bao-cao-tach-pha">5. Việc mở sau QC (ai nhận thì ghi tên, theo đúng cơ chế mục 7 của báo cáo tách pha)</a></li>
+<li><a href="#6-sinh-lai-ban-html">6. Sinh lại bản HTML</a></li>
+</ol></nav>
+
+<p>Nhiệm vụ QC: kiểm tra tính chính xác của các thuật toán đã khai báo (detect biên, detect mặt sân, detect hình học/vạch sân, bóng chạm vợt, bóng chết), kiểm tra rằng <strong>từng bước chọn timecode highlight đều mô tả được và chứng minh được bằng code + test</strong>, và bắt mọi khẳng định trong báo cáo mà repo không chứng minh được.</p>
+<p><strong>Cách kiểm:</strong> đọc đối chiếu toàn bộ <code>core.py</code>, <code>pickleball.py</code>, <code>rally_evidence.py</code>, <code>photo_finish.py</code>, <code>rally_export.py</code>, <code>rally_preview.py</code>, <code>match_ui.py</code>, <code>project_tools_ui.py</code>, <code>app.py</code> với hai báo cáo <code>reports/anhnhc/tach-pha-bong.md</code> và <code>reports/project-audit.md</code>; chạy lại toàn bộ kiểm thử và viết thêm thí nghiệm ca biên (<code>reports/qc/qc_experiments.py</code>). Video trận 67 phút <strong>không có trong repo</strong>, nên các con số đo trên trận thật chỉ đối chiếu được về mô tả thuật toán, không chạy lại được trên máy QC (xem mục 4.2).</p>
+<h2 id="1-ket-qua-chay-tren-may-qc-macos-python-314-venv-tu-requirementstxt">1. Kết quả chạy trên máy QC (macOS, Python 3.14, venv từ <code>requirements.txt</code>)</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Lệnh</th>
+<th>Kết quả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.venv/bin/python -m pytest -q</code></td>
+<td><strong>36 passed</strong> (33 passed + 2 skipped trước khi chạy smoke test tạo fixture; 35 sau smoke test; 36 sau khi QC thêm test hồi quy mục 3.1)</td>
+</tr>
+<tr>
+<td><code>.venv/bin/python smoke_test.py</code></td>
+<td>PASS: cuts, duration budget, MP4 export, Streamlit initial render</td>
+</tr>
+<tr>
+<td><code>.venv/bin/python reports/qc/qc_experiments.py</code></td>
+<td>4/4 ca PASS <strong>sau khi sửa lỗi mục 3.1</strong> (trước khi sửa: ca "một cụm duy nhất" FAIL)</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="2-cac-khang-inh-a-chung-minh-uoc">2. Các khẳng định ĐÃ chứng minh được</h2>
+<h3 id="21-tung-buoc-chon-timecode-highlight-muc-32-bao-cao-tach-pha-code-test">2.1 Từng bước chọn timecode highlight (mục 3.2 báo cáo tách pha) ↔ code ↔ test</h3>
+<p>Yêu cầu "trong report phải mô tả được từng bước mình chọn đoạn timecode đó làm highlight" <strong>đạt</strong> đối với bản nền gián tiếp: chuỗi dưới đây là đường đi đầy đủ từ video đến từng cặp <code>start</code>/<code>end</code> trong <code>report.json</code>, mỗi bước có code và test tương ứng.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Bước (như báo cáo mô tả)</th>
+<th>Code</th>
+<th>Bằng chứng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Lấy mẫu 2 khung/giây, thu 320×180</td>
+<td><code>core.analyze</code> (<code>grab</code>/<code>retrieve</code>, <code>step=round(fps/2)</code>)</td>
+<td>đọc code khớp</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Bố cục màu Lab 16×9 → vector 432 số</td>
+<td><code>core.py</code> dòng 131; 16·9·3 = 432 ✓</td>
+<td>khớp số trong báo cáo</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Giảm nhiễu</strong> Gauss 3×3 rồi <strong>detect biên</strong> Canny 50/150; nén bit ≈7 KB/khung</td>
+<td><code>core._edges</code>; 320·180/8 = 7 200 byte ✓</td>
+<td>khớp số trong báo cáo</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Âm lượng RMS cửa sổ 0,5 s, dBFS, mono 8 kHz</td>
+<td><code>core.audio_loudness</code> (cửa sổ = <code>step/fps</code> = 0,5 s <strong>khi</strong> lấy mẫu 2 fps)</td>
+<td><code>test_otsu_splits_bimodal</code> cho phần ngưỡng</td>
+</tr>
+<tr>
+<td>5</td>
+<td>K-means 12 cụm bố cục màu, seed 42</td>
+<td><code>core.py</code> dòng 149 (<code>min(12, …)</code>, <code>random_state=42</code>)</td>
+<td>khớp</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Detect mặt sân/hình học</strong>: khuôn biên mỗi cụm = trung vị bản đồ biên; độ khớp = Dice hai chiều recall/precision (dung sai lệch 1 pixel); cụm cố định = phía cao Otsu trên log self-match; cụm camera sân = cụm cố định có <strong>đường thẳng Hough</strong> (vạch sân, lưới)</td>
+<td><code>core.edge_dice</code>, <code>core.court_cameras</code></td>
+<td><code>test_court_cameras_from_edges_alone</code> (cụm sân nhận đúng, cảnh quay tay và cảnh tĩnh không vạch bị loại); thí nghiệm QC ca 1, 3, 4</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Khung sân = điểm khớp cao nhất với các khuôn sân, vượt ngưỡng Otsu</td>
+<td><code>core.analyze</code> (<code>court_score</code>, <code>court_threshold</code>), <code>core.detect_rallies</code></td>
+<td><code>test_detect_rallies_uses_edge_court_score</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Khán giả im = phía thấp Otsu trên âm lượng cả trận</td>
+<td><code>core.detect_rallies</code> (<code>quiet</code>)</td>
+<td><code>test_rallies_are_quiet_court_stretches_with_serve_and_reaction</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>Làm mượt chuỗi thời gian</strong>: pha = sân AND im; lấp lỗ ≤ 1 s; bỏ đoạn &lt; 1,5 s</td>
+<td><code>detect_rallies</code> (<code>gap=1</code>, <code>min_len=1.5</code>, <code>_runs</code>)</td>
+<td>cùng test trên (0,5 s im không thành pha)</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Đệm +1 s trước (không lùi quá đầu cảnh sân) và +2 s sau</td>
+<td><code>detect_rallies</code> (<code>pre</code>, <code>post</code>, vòng lùi <code>lead</code>)</td>
+<td><code>test_pre_roll_does_not_reach_into_the_close_up</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Hai pha chồng phần đệm → cắt giữa khoảng nghỉ</td>
+<td><code>core.py</code> dòng 215–216</td>
+<td><code>test_close_padding_is_split_in_the_pause</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Điểm pha = trung bình thứ hạng phần trăm của (độ dài pha, âm lượng lớn nhất 3 s sau pha)</td>
+<td><code>core._rank</code>, <code>reaction=3</code></td>
+<td><code>test_scores_reward_long_rally_and_loud_reaction</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Chọn pha <strong>trọn hoặc bỏ</strong> theo ngân sách (greedy hoặc knapsack 0/1)</td>
+<td><code>core.select(mode='rally')</code>, <code>core.knapsack_select</code></td>
+<td><code>test_select_keeps_whole_rallies_within_budget</code>, <code>test_ratio_one_keeps_every_rally</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Ghi <code>start</code>/<code>end</code> (giây) vào <code>report.json</code>; ffmpeg cắt từng pha rồi nối đúng thứ tự; có timecode nguồn → highlight</td>
+<td><code>app.py</code> dòng 49–50, <code>core.export_video</code>, <code>rally_evidence.timecode_table</code>, <code>rally_export.export_individual</code></td>
+<td><code>test_each_file_contains_only_its_rally_and_zip_is_current</code>, <code>test_all_mode_never_discards_eligible_rallies</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Pipeline pickleball cục bộ (<code>pickleball.py</code>, góc máy cố định tự quay) cũng mô tả được từng bước: optical flow Farneback trừ vector trung vị (khử chuyển động máy quay) → chuẩn hóa → <strong>làm mượt trung vị trượt</strong> → hysteresis hai ngưỡng (0,32 / 60%) → lấp khoảng nghỉ ≤ 2 s → bỏ hoạt động &lt; 4 s → đệm trước/sau chặn ở chuyển cảnh → khoảng &gt; 90 s gắn <code>needs_review</code>, không tự chọn. Test: <code>tests/test_pickleball.py</code> (6 test).</p>
+<h3 id="22-thuat-toan-mon-hoc-dung-o-au-tra-loi-dung-cac-thuat-toan-nao-a-hoc">2.2 Thuật toán môn học dùng ở đâu (trả lời "dùng các thuật toán nào đã học")</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Kỹ thuật đã học</th>
+<th>Vị trí trong code</th>
+<th>Vai trò</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Detect biên</strong>: Canny (Gauss 3×3 trước)</td>
+<td><code>core._edges</code></td>
+<td>nhận camera sân bằng khuôn biên</td>
+</tr>
+<tr>
+<td><strong>Detect hình học</strong>: biến đổi Hough (đường thẳng)</td>
+<td><code>core.court_cameras</code></td>
+<td>xác nhận khuôn có vạch sân/mép lưới</td>
+</tr>
+<tr>
+<td><strong>Detect mặt sân</strong> (màu sàn)</td>
+<td><code>core._floor_mask</code> (histogram hue–sat phần dưới khung + morphological close)</td>
+<td>lọc "chân đứng trên sàn" khi chọn ảnh cầu thủ</td>
+</tr>
+<tr>
+<td><strong>Giảm nhiễu</strong>: Gauss, mở/đóng hình thái học, Non-Local Means</td>
+<td><code>core._edges</code>, <code>core.best_shots</code>, <code>photo_finish.finish_photo</code></td>
+<td>trước Canny; dọn mặt nạ trừ nền; khử nhiễu ảnh trước tăng nét</td>
+</tr>
+<tr>
+<td><strong>Làm mượt tín hiệu thời gian</strong>: trung vị trượt; lấp lỗ/bỏ run ngắn</td>
+<td><code>pickleball.propose_rallies</code>; <code>core.detect_rallies</code></td>
+<td>chống nhấp nháy khi quyết định pha</td>
+</tr>
+<tr>
+<td><strong>Ngưỡng tự động Otsu</strong></td>
+<td><code>core.otsu_threshold</code> (3 chỗ: cụm cố định, khung sân, âm lượng)</td>
+<td>không phải chỉnh tay theo video</td>
+</tr>
+<tr>
+<td><strong>Phân cụm K-means</strong></td>
+<td><code>core.analyze</code> (bố cục Lab 16×9)</td>
+<td>gom góc camera</td>
+</tr>
+<tr>
+<td><strong>Trừ nền</strong>: MOG2; sai khác khung</td>
+<td><code>core.best_shots</code>; <code>rally_evidence.ball_candidates</code></td>
+<td>tách người chuyển động; tách vật chuyển động nhỏ</td>
+</tr>
+<tr>
+<td><strong>Vẽ quỹ đạo + bám vật</strong>: nối ứng viên bằng dự đoán vận tốc (gating), polyline chồng khung, reset khi mất dấu/cắt cảnh</td>
+<td><code>rally_evidence.track_ball</code></td>
+<td>bằng chứng quỹ đạo bóng ở FPS gốc, kèm CSV và ảnh mốc đổi hướng</td>
+</tr>
+<tr>
+<td><strong>Tăng nét</strong>: unsharp mask; <strong>giảm mờ</strong>: lọc nghịch đảo có regularization với PSF vệt thẳng (họ Wiener); độ nét = phương sai Laplacian</td>
+<td><code>photo_finish.finish_photo</code></td>
+<td>ảnh góc ngang; lưu cả ảnh gốc và thông số JSON</td>
+</tr>
+<tr>
+<td><strong>Optical flow Farneback</strong></td>
+<td><code>pickleball.analyze_match</code>, <code>core.analyze</code></td>
+<td>hoạt động trên sân; fallback nhận camera cố định</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="23-bong-chet-va-ranh-gioi-pha-ung-luat-ung-muc-khiem-ton">2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn</h3>
+<ul>
+<li>Định nghĩa trong báo cáo (mục 3.1) khớp luật hai lần nảy của pickleball: một lần bóng chạm sàn <strong>không</strong> kết thúc pha; pha chỉ đóng khi bóng chạm sàn mà không còn cú chạm vợt nào sau đó (tức nảy lần hai/bóng chết), ra ngoài, hoặc vào lưới.</li>
+<li>Code tôn trọng đúng định nghĩa đó ở phần sự kiện: <code>rally_evidence.rallies_from_events</code> chỉ ghép <strong>cặp giao bóng–kết thúc đã được người xác nhận</strong>; <code>bounce</code> và <code>occluded</code> không bao giờ tự đóng pha (<code>test_bounces_and_lost_ball_do_not_end_rally</code>); pha mở hoặc chưa xác nhận không được xuất (<code>test_unconfirmed_and_open_rallies_are_not_exported</code>).</li>
+<li>"Chuyển góc máy không phải kết thúc pha": <code>detect_rallies</code> chỉ lấp lỗ ≤ 1 s, nên về mặt code chuyển cảnh ngắn giữa pha không cắt pha; chuyển cảnh dài hơn vẫn cắt sai — báo cáo đã tự khai ở ví dụ 10:55 và việc mở V5/V7.</li>
+</ul>
+<h2 id="3-nhung-iem-qc-bat">3. Những điểm QC BẮT</h2>
+<h3 id="31-loi-a-tai-lap-a-sua-tren-nhanh-nay-video-mot-cum-camera-duy-nhat-0-pha">3.1 LỖI (đã tái lập, đã sửa trên nhánh này): video một cụm camera duy nhất → 0 pha</h3>
+<p><code>court_cameras</code> chọn cụm cố định bằng Otsu trên log self-match rồi so sánh <strong><code>m &gt; cut</code></strong>. Khi K-means chỉ trả về <strong>một</strong> cụm, <code>otsu_threshold</code> của một giá trị trả về chính giá trị đó, phép so sánh ngặt loại luôn cụm duy nhất → không có camera sân → <code>detect_rallies</code> trả <strong>0 pha</strong>, dù toàn video là camera sân có vạch Hough rõ. Nhánh fallback theo chuyển động dùng <code>&lt;=</code> (bao gồm) nên không bị — hai nhánh không nhất quán.</p>
+<ul>
+<li>Tái lập: <code>reports/qc/qc_experiments.py</code> ca 2 (FAIL tại <code>b77f853</code>).</li>
+<li>Sửa: một cụm duy nhất thì chỉ cần qua cổng Hough (<code>core.py</code>, hàm <code>court_cameras</code>); cảnh tĩnh không vạch và cảnh quay tay vẫn bị loại (ca 3–4 PASS).</li>
+<li>Test hồi quy: <code>tests/test_rally.py::test_single_cluster_video_keeps_its_court_camera</code>.</li>
+<li>Mức ảnh hưởng: thấp với trận phát sóng nhiều góc (K-means luôn ra nhiều cụm), nhưng chặn đúng loại video nhóm định tự quay một góc máy (việc mở V1). Chưa kiểm chứng lại trên trận 67 phút vì repo không có video (mục 4.2).</li>
+</ul>
+<h3 id="32-chua-chung-minh-uoc-timecode-highlight-hien-tai-khong-en-tu-bongvotsan">3.2 Chưa chứng minh được: timecode highlight hiện tại KHÔNG đến từ bóng–vợt–sàn</h3>
+<p>Đây là khoảng trống lớn nhất giữa mục tiêu đề tài và bằng chứng hiện có, và cả hai báo cáo đều <strong>đã tự khai đúng</strong> — QC xác nhận khai báo khớp code:</p>
+<ul>
+<li>Không có detector mặt vợt, không có detector bóng chạm sàn, không có bộ đếm "nảy hai lần". Ranh giới pha của highlight đang lấy từ <em>camera sân + khán giả im</em> (gián tiếp), không phải từ sự kiện bóng.</li>
+<li><code>direction_change_candidate</code> (cosine hai vận tốc &lt; 0,3 trong <code>track_ball</code>) <strong>không phân biệt</strong> chạm vợt / chạm sàn / nhiễu bám; overlay cũng ghi rõ "BALL CANDIDATE – NOT VERIFIED". Ngoài ra, cú nảy mà thành phần ngang của vận tốc chiếm ưu thế có thể không đổi hướng đủ mạnh để cosine &lt; 0,3 — tức ứng viên đổi hướng <strong>không bảo đảm bắt được mọi cú nảy</strong>, chưa nói đến phân loại.</li>
+<li>Vậy: mọi câu trong báo cáo cuối cùng dạng "highlight được chọn vì bóng chết / vì bóng chạm vợt lúc X" đều <strong>chưa chứng minh được bằng pipeline tự động</strong>; chỉ được phép nói vậy cho các pha đi qua bảng xác nhận sự kiện của người xem (<code>rallies_from_events</code>). Ai viết report thuyết trình cần giữ đúng ranh giới này.</li>
+</ul>
+<h3 id="33-chua-chung-minh-uoc-cac-con-so-o-tren-tran-67-phut-khong-tai-lap-uoc-tu-repo">3.3 Chưa chứng minh được: các con số đo trên trận 67 phút không tái lập được từ repo</h3>
+<p>Mục 7 của báo cáo tách pha tự đặt luật <em>"Số liệu phải đo được và kèm lệnh hoặc script để chạy lại"</em>, nhưng chính báo cáo đang vi phạm luật đó ở các điểm sau (QC đã grep toàn repo, không có script nào sinh ra các số/hình này):</p>
+<ul>
+<li>"61/154 pha có đổi camera giữa pha, tổng 87 lần", ví dụ phút 10:55 — không có script đếm số lần đổi camera trong pha.</li>
+<li>Toàn bộ 7 hình trong <code>reports/anhnhc/img/</code> (phân bố âm lượng, dòng thời gian, cụm camera, vật màu vàng…) — không có script vẽ lại.</li>
+<li>Dice 0,89–0,92, ngưỡng Otsu −26,3 dBFS, 154 pha, "4/12 ảnh dùng được", "54–176 vật màu vàng mỗi khung" — không có <code>features.csv</code>/<code>report.json</code> của lần chạy đó trong repo, cũng không có video (dễ hiểu vì dung lượng/bản quyền, nhưng cần ghi URL + lệnh chạy để người khác tái lập; mục "Dữ liệu và giao thức" của README yêu cầu đúng điều này cho video dùng).</li>
+</ul>
+<p>→ Việc mở <strong>Q1</strong> (mục 5): commit script đo + hướng dẫn tái lập, hoặc hạ cấp các con số này trong báo cáo thành "kiểm bằng mắt, chưa tái lập được".</p>
+<h3 id="34-tai-lieu-lech-so-voi-code-a-sua-tren-nhanh-nay">3.4 Tài liệu lệch so với code (đã sửa trên nhánh này)</h3>
+<ul>
+<li><code>README.md</code> mục "Chế độ thể thao có pha bóng" vẫn mô tả cách nhận camera sân bằng <strong>chuyển động thấp (optical flow)</strong> — đã bị thay bằng khuôn biên Canny từ commit <code>2087999</code>. Đã cập nhật mô tả, giữ ghi chú fallback.</li>
+<li>Cuối <code>README.md</code> có một đoạn chat góp ý dán thô ("oh no, anh cần xem highlight pick…"). Đây là góp ý định hình yêu cầu "lấy trọn pha" nên không bỏ nội dung, nhưng đã chuyển thành blockquote có ngữ cảnh.</li>
+<li>Báo cáo tách pha mục 6 ghi <code>tests/test_rally.py</code> có "7 test" — thực tế 10 (nay 11 sau test hồi quy QC). Đã sửa.</li>
+</ul>
+<h3 id="35-ghi-chu-nho-chua-sua-khong-chan">3.5 Ghi chú nhỏ (chưa sửa, không chặn)</h3>
+<ul>
+<li>Báo cáo viết dung sai "cho lệch 1 pixel" chỉ cho chiều recall; code dilate <strong>cả hai chiều</strong> (biên khung cho recall, khuôn cho precision). Nên viết lại cho đúng khi cập nhật báo cáo.</li>
+<li>"Cửa sổ RMS 0,5 s" chỉ đúng khi lấy mẫu 2 fps (cửa sổ = 1/sample_fps); đổi tốc độ lấy mẫu trên UI thì con số trong báo cáo đổi theo.</li>
+<li><code>cheer_db</code> đo trong 3 s sau pha có thể dính tiếng giao bóng của pha kế tiếp khi hai pha sát nhau — chấp nhận được cho xếp hạng, nên ghi rõ nếu dùng con số này làm bằng chứng.</li>
+<li><code>ball_candidates</code> cho phép blob tới <code>max(100, 0.1% khung)</code> ≈ 2 000 px ở 1080p — đủ lọt giày/mũ; audit đã khai việc bám nhầm khi khởi tạo lại, giữ nguyên khai báo đó.</li>
+</ul>
+<h2 id="4-gioi-han-cua-chinh-ot-qc-nay">4. Giới hạn của chính đợt QC này</h2>
+<ol>
+<li><strong>Toàn bộ kiểm chứng chạy trên dữ liệu tổng hợp.</strong> 36 test + 4 thí nghiệm QC chứng minh thuật toán làm đúng <em>điều nó khai</em> trên tín hiệu sạch; không chứng minh độ chính xác trên trận thật. Kết luận "tách đúng 154 pha" vẫn là kiểm bằng mắt của tác giả.</li>
+<li><strong>Không có video trận 67 phút</strong> trong repo nên QC không thể xác nhận các con số của mục 3.2 báo cáo gốc, và không thể đo tác động của sửa lỗi 3.1 lên trận thật (dự đoán: không đổi, vì trận đó có 12 cụm).</li>
+<li>QC không đánh giá chất lượng cảm quan của highlight hay ảnh cầu thủ.</li>
+</ol>
+<h2 id="5-viec-mo-sau-qc-ai-nhan-thi-ghi-ten-theo-ung-co-che-muc-7-cua-bao-cao-tach-pha">5. Việc mở sau QC (ai nhận thì ghi tên, theo đúng cơ chế mục 7 của báo cáo tách pha)</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Việc</th>
+<th>Xong khi</th>
+<th>Người nhận</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>Script tái lập các con số/hình của báo cáo tách pha (đếm đổi camera trong pha, vẽ lại 7 hình từ <code>features.csv</code>) + ghi URL video, lệnh chạy</td>
+<td>Chạy một lệnh ra lại đúng các số trong báo cáo, hoặc các số được hạ cấp thành "kiểm bằng mắt"</td>
+<td></td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>Chạy lại trận 67 phút trên nhánh đã sửa 3.1, xác nhận số pha không đổi</td>
+<td>Ghi số pha trước/sau vào báo cáo tách pha</td>
+<td></td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>Thêm vào báo cáo một ví dụ lần vết <strong>một pha cụ thể</strong>: từ <code>features.csv</code> chỉ ra court_score và âm lượng từng mẫu so với hai ngưỡng Otsu, phép đệm → ra đúng <code>start</code>/<code>end</code> trong <code>report.json</code></td>
+<td>Có bảng/hình lần vết kèm lệnh chạy lại</td>
+<td></td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>Rà soát bản thuyết trình: mọi chỗ nói "bóng chạm vợt/bóng chết quyết định timecode" phải đổi thành "bản nền gián tiếp + sự kiện người xác nhận" (mục 3.2 QC)</td>
+<td>Không còn câu nào vượt quá bằng chứng</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="6-sinh-lai-ban-html">6. Sinh lại bản HTML</h2>
+<pre><code class="language-bash">.venv/bin/pip install markdown
+.venv/bin/python reports/build_html.py
+</code></pre>
+</main>
+</body>
+</html>
