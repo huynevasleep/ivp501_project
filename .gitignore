@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 runs/
 *.mp4
+colab_tham_khao/

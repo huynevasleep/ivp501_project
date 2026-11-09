@@ -193,72 +193,104 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 </table></div>
 <p>Pipeline pickleball cục bộ (<code>pickleball.py</code>, góc máy cố định tự quay) cũng mô tả được từng bước: optical flow Farneback trừ vector trung vị (khử chuyển động máy quay) → chuẩn hóa → <strong>làm mượt trung vị trượt</strong> → hysteresis hai ngưỡng (0,32 / 60%) → lấp khoảng nghỉ ≤ 2 s → bỏ hoạt động &lt; 4 s → đệm trước/sau chặn ở chuyển cảnh → khoảng &gt; 90 s gắn <code>needs_review</code>, không tự chọn. Test: <code>tests/test_pickleball.py</code> (6 test).</p>
 <h3 id="22-thuat-toan-mon-hoc-dung-o-au-tra-loi-dung-cac-thuat-toan-nao-a-hoc">2.2 Thuật toán môn học dùng ở đâu (trả lời "dùng các thuật toán nào đã học")</h3>
+<p>Cột "Bài học" đối chiếu với notebook Colab của môn (Session 2–8, nhóm đã tải về <code>colab_tham_khao/</code> — không commit): QC đã đọc toàn bộ 8 notebook và xác nhận các kỹ thuật dưới đây đúng là nội dung đã học.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
 <th>Kỹ thuật đã học</th>
+<th>Bài học (Colab)</th>
 <th>Vị trí trong code</th>
 <th>Vai trò</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Detect biên</strong>: Canny (Gauss 3×3 trước)</td>
+<td><strong>Detect biên</strong>: Canny (Gauss trước, hai ngưỡng)</td>
+<td>Session 7 Ex7_3 (Canny); Ex7_1/7_2 nền tảng gradient Prewitt/Sobel</td>
 <td><code>core._edges</code></td>
 <td>nhận camera sân bằng khuôn biên</td>
 </tr>
 <tr>
-<td><strong>Detect hình học</strong>: biến đổi Hough (đường thẳng)</td>
-<td><code>core.court_cameras</code></td>
+<td><strong>Detect hình học</strong>: biến đổi Hough đường thẳng</td>
+<td>Session 7 Ex7_4/7_5 (Hough line, deskew), Ex7_7 (Hough circle)</td>
+<td><code>core.court_cameras</code> (<code>HoughLinesP</code>)</td>
 <td>xác nhận khuôn có vạch sân/mép lưới</td>
 </tr>
 <tr>
 <td><strong>Detect mặt sân</strong> (màu sàn)</td>
+<td>Session 2 (histogram); Session 6 (phép đóng)</td>
 <td><code>core._floor_mask</code> (histogram hue–sat phần dưới khung + morphological close)</td>
 <td>lọc "chân đứng trên sàn" khi chọn ảnh cầu thủ</td>
 </tr>
 <tr>
-<td><strong>Giảm nhiễu</strong>: Gauss, mở/đóng hình thái học, Non-Local Means</td>
+<td><strong>Giảm nhiễu</strong>: Gauss, lọc trung bình, mở/đóng hình thái học, Non-Local Means</td>
+<td>Session 4 Ex4_1/4_2 (lọc không gian), Ex4_3 (min/max cho muối tiêu); Session 3 Ex3_5 (trung bình nhiều khung)</td>
 <td><code>core._edges</code>, <code>core.best_shots</code>, <code>photo_finish.finish_photo</code></td>
 <td>trước Canny; dọn mặt nạ trừ nền; khử nhiễu ảnh trước tăng nét</td>
 </tr>
 <tr>
 <td><strong>Làm mượt tín hiệu thời gian</strong>: trung vị trượt; lấp lỗ/bỏ run ngắn</td>
+<td>mở rộng 1-D của lọc trung vị/phép đóng (Session 4, 6)</td>
 <td><code>pickleball.propose_rallies</code>; <code>core.detect_rallies</code></td>
 <td>chống nhấp nháy khi quyết định pha</td>
 </tr>
 <tr>
 <td><strong>Ngưỡng tự động Otsu</strong></td>
+<td>Session 5 Ex5_3, Session 6, Session 7 Ex7_5 (<code>THRESH_OTSU</code>)</td>
 <td><code>core.otsu_threshold</code> (3 chỗ: cụm cố định, khung sân, âm lượng)</td>
 <td>không phải chỉnh tay theo video</td>
 </tr>
 <tr>
-<td><strong>Phân cụm K-means</strong></td>
-<td><code>core.analyze</code> (bố cục Lab 16×9)</td>
-<td>gom góc camera</td>
+<td><strong>Gán nhãn thành phần liên thông / region labelling</strong></td>
+<td>Session 5 Ex5_3 (đếm cá), Session 6 Ex6_3 (đếm xu bằng phép co)</td>
+<td><code>core.best_shots</code>, <code>rally_evidence.ball_candidates</code> (<code>connectedComponentsWithStats</code>)</td>
+<td>tách người/ứng viên bóng</td>
+</tr>
+<tr>
+<td><strong>Hình thái học</strong>: giãn/co, mở/đóng, biên bằng giãn−co</td>
+<td>Session 6 Ex6_1–6_7</td>
+<td><code>core.best_shots</code>, <code>core._floor_mask</code>, <code>core.edge_dice</code> (dilate làm dung sai 1 px)</td>
+<td>dọn mặt nạ, dung sai so khớp biên</td>
 </tr>
 <tr>
 <td><strong>Trừ nền</strong>: MOG2; sai khác khung</td>
+<td>sai khác khung = phép trừ ảnh Session 3 Ex3_2</td>
 <td><code>core.best_shots</code>; <code>rally_evidence.ball_candidates</code></td>
 <td>tách người chuyển động; tách vật chuyển động nhỏ</td>
 </tr>
 <tr>
 <td><strong>Vẽ quỹ đạo + bám vật</strong>: nối ứng viên bằng dự đoán vận tốc (gating), polyline chồng khung, reset khi mất dấu/cắt cảnh</td>
+<td>tổng hợp từ trừ ảnh + region labelling (Session 3, 5)</td>
 <td><code>rally_evidence.track_ball</code></td>
 <td>bằng chứng quỹ đạo bóng ở FPS gốc, kèm CSV và ảnh mốc đổi hướng</td>
 </tr>
 <tr>
-<td><strong>Tăng nét</strong>: unsharp mask; <strong>giảm mờ</strong>: lọc nghịch đảo có regularization với PSF vệt thẳng (họ Wiener); độ nét = phương sai Laplacian</td>
+<td><strong>Tăng nét</strong>: unsharp mask / kernel khử mờ; <strong>giảm mờ</strong>: lọc nghịch đảo regularized với PSF vệt thẳng (họ Wiener)</td>
+<td>Session 5 Ex5_1 (kernel khử mờ), Ex5_2 (Butterworth + <strong>Wiener</strong>)</td>
 <td><code>photo_finish.finish_photo</code></td>
 <td>ảnh góc ngang; lưu cả ảnh gốc và thông số JSON</td>
 </tr>
 <tr>
-<td><strong>Optical flow Farneback</strong></td>
+<td><strong>Cân bằng phổ / CLAHE</strong></td>
+<td>Session 2 Ex2_2–2_4, Session 8 (CLAHE trong DoH)</td>
+<td>chưa dùng trong luồng chính (ứng viên cho tiền xử lý ảnh góc ngang)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Nội suy khi phóng ảnh</strong> (nearest/linear/cubic)</td>
+<td>Session 3 Ex3_7</td>
+<td>kế hoạch mục 5.2 báo cáo tách pha (song khối)</td>
+<td>chưa chạy</td>
+</tr>
+<tr>
+<td><strong>Optical flow Farneback</strong>; <strong>K-means</strong></td>
+<td>ngoài phạm vi Session 2–8 đã tải (có thể ở folder Colab thứ nhất, chưa truy cập được)</td>
 <td><code>pickleball.analyze_match</code>, <code>core.analyze</code></td>
-<td>hoạt động trên sân; fallback nhận camera cố định</td>
+<td>hoạt động trên sân; fallback camera cố định; gom góc camera</td>
 </tr>
 </tbody>
 </table></div>
+<p>Ghi chú nguồn tham khảo: QC mới truy cập được <strong>folder Colab thứ hai</strong> (Session 2–8). Folder thứ nhất vẫn trả về 401 (chưa chia sẻ), nên các trích dẫn "Ví dụ 1.3 / 1.5 / 2.10" trong mục 5.2 của báo cáo tách pha chưa đối chiếu được với tài liệu gốc.</p>
 <h3 id="23-bong-chet-va-ranh-gioi-pha-ung-luat-ung-muc-khiem-ton">2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn</h3>
 <ul>
 <li>Định nghĩa trong báo cáo (mục 3.1) khớp luật hai lần nảy của pickleball: một lần bóng chạm sàn <strong>không</strong> kết thúc pha; pha chỉ đóng khi bóng chạm sàn mà không còn cú chạm vợt nào sau đó (tức nảy lần hai/bóng chết), ra ngoài, hoặc vào lưới.</li>

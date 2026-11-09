@@ -41,19 +41,26 @@ Pipeline pickleball cục bộ (`pickleball.py`, góc máy cố định tự qua
 
 ### 2.2 Thuật toán môn học dùng ở đâu (trả lời "dùng các thuật toán nào đã học")
 
-| Kỹ thuật đã học | Vị trí trong code | Vai trò |
-|---|---|---|
-| **Detect biên**: Canny (Gauss 3×3 trước) | `core._edges` | nhận camera sân bằng khuôn biên |
-| **Detect hình học**: biến đổi Hough (đường thẳng) | `core.court_cameras` | xác nhận khuôn có vạch sân/mép lưới |
-| **Detect mặt sân** (màu sàn) | `core._floor_mask` (histogram hue–sat phần dưới khung + morphological close) | lọc "chân đứng trên sàn" khi chọn ảnh cầu thủ |
-| **Giảm nhiễu**: Gauss, mở/đóng hình thái học, Non-Local Means | `core._edges`, `core.best_shots`, `photo_finish.finish_photo` | trước Canny; dọn mặt nạ trừ nền; khử nhiễu ảnh trước tăng nét |
-| **Làm mượt tín hiệu thời gian**: trung vị trượt; lấp lỗ/bỏ run ngắn | `pickleball.propose_rallies`; `core.detect_rallies` | chống nhấp nháy khi quyết định pha |
-| **Ngưỡng tự động Otsu** | `core.otsu_threshold` (3 chỗ: cụm cố định, khung sân, âm lượng) | không phải chỉnh tay theo video |
-| **Phân cụm K-means** | `core.analyze` (bố cục Lab 16×9) | gom góc camera |
-| **Trừ nền**: MOG2; sai khác khung | `core.best_shots`; `rally_evidence.ball_candidates` | tách người chuyển động; tách vật chuyển động nhỏ |
-| **Vẽ quỹ đạo + bám vật**: nối ứng viên bằng dự đoán vận tốc (gating), polyline chồng khung, reset khi mất dấu/cắt cảnh | `rally_evidence.track_ball` | bằng chứng quỹ đạo bóng ở FPS gốc, kèm CSV và ảnh mốc đổi hướng |
-| **Tăng nét**: unsharp mask; **giảm mờ**: lọc nghịch đảo có regularization với PSF vệt thẳng (họ Wiener); độ nét = phương sai Laplacian | `photo_finish.finish_photo` | ảnh góc ngang; lưu cả ảnh gốc và thông số JSON |
-| **Optical flow Farneback** | `pickleball.analyze_match`, `core.analyze` | hoạt động trên sân; fallback nhận camera cố định |
+Cột "Bài học" đối chiếu với notebook Colab của môn (Session 2–8, nhóm đã tải về `colab_tham_khao/` — không commit): QC đã đọc toàn bộ 8 notebook và xác nhận các kỹ thuật dưới đây đúng là nội dung đã học.
+
+| Kỹ thuật đã học | Bài học (Colab) | Vị trí trong code | Vai trò |
+|---|---|---|---|
+| **Detect biên**: Canny (Gauss trước, hai ngưỡng) | Session 7 Ex7_3 (Canny); Ex7_1/7_2 nền tảng gradient Prewitt/Sobel | `core._edges` | nhận camera sân bằng khuôn biên |
+| **Detect hình học**: biến đổi Hough đường thẳng | Session 7 Ex7_4/7_5 (Hough line, deskew), Ex7_7 (Hough circle) | `core.court_cameras` (`HoughLinesP`) | xác nhận khuôn có vạch sân/mép lưới |
+| **Detect mặt sân** (màu sàn) | Session 2 (histogram); Session 6 (phép đóng) | `core._floor_mask` (histogram hue–sat phần dưới khung + morphological close) | lọc "chân đứng trên sàn" khi chọn ảnh cầu thủ |
+| **Giảm nhiễu**: Gauss, lọc trung bình, mở/đóng hình thái học, Non-Local Means | Session 4 Ex4_1/4_2 (lọc không gian), Ex4_3 (min/max cho muối tiêu); Session 3 Ex3_5 (trung bình nhiều khung) | `core._edges`, `core.best_shots`, `photo_finish.finish_photo` | trước Canny; dọn mặt nạ trừ nền; khử nhiễu ảnh trước tăng nét |
+| **Làm mượt tín hiệu thời gian**: trung vị trượt; lấp lỗ/bỏ run ngắn | mở rộng 1-D của lọc trung vị/phép đóng (Session 4, 6) | `pickleball.propose_rallies`; `core.detect_rallies` | chống nhấp nháy khi quyết định pha |
+| **Ngưỡng tự động Otsu** | Session 5 Ex5_3, Session 6, Session 7 Ex7_5 (`THRESH_OTSU`) | `core.otsu_threshold` (3 chỗ: cụm cố định, khung sân, âm lượng) | không phải chỉnh tay theo video |
+| **Gán nhãn thành phần liên thông / region labelling** | Session 5 Ex5_3 (đếm cá), Session 6 Ex6_3 (đếm xu bằng phép co) | `core.best_shots`, `rally_evidence.ball_candidates` (`connectedComponentsWithStats`) | tách người/ứng viên bóng |
+| **Hình thái học**: giãn/co, mở/đóng, biên bằng giãn−co | Session 6 Ex6_1–6_7 | `core.best_shots`, `core._floor_mask`, `core.edge_dice` (dilate làm dung sai 1 px) | dọn mặt nạ, dung sai so khớp biên |
+| **Trừ nền**: MOG2; sai khác khung | sai khác khung = phép trừ ảnh Session 3 Ex3_2 | `core.best_shots`; `rally_evidence.ball_candidates` | tách người chuyển động; tách vật chuyển động nhỏ |
+| **Vẽ quỹ đạo + bám vật**: nối ứng viên bằng dự đoán vận tốc (gating), polyline chồng khung, reset khi mất dấu/cắt cảnh | tổng hợp từ trừ ảnh + region labelling (Session 3, 5) | `rally_evidence.track_ball` | bằng chứng quỹ đạo bóng ở FPS gốc, kèm CSV và ảnh mốc đổi hướng |
+| **Tăng nét**: unsharp mask / kernel khử mờ; **giảm mờ**: lọc nghịch đảo regularized với PSF vệt thẳng (họ Wiener) | Session 5 Ex5_1 (kernel khử mờ), Ex5_2 (Butterworth + **Wiener**) | `photo_finish.finish_photo` | ảnh góc ngang; lưu cả ảnh gốc và thông số JSON |
+| **Cân bằng phổ / CLAHE** | Session 2 Ex2_2–2_4, Session 8 (CLAHE trong DoH) | chưa dùng trong luồng chính (ứng viên cho tiền xử lý ảnh góc ngang) | — |
+| **Nội suy khi phóng ảnh** (nearest/linear/cubic) | Session 3 Ex3_7 | kế hoạch mục 5.2 báo cáo tách pha (song khối) | chưa chạy |
+| **Optical flow Farneback**; **K-means** | ngoài phạm vi Session 2–8 đã tải (có thể ở folder Colab thứ nhất, chưa truy cập được) | `pickleball.analyze_match`, `core.analyze` | hoạt động trên sân; fallback camera cố định; gom góc camera |
+
+Ghi chú nguồn tham khảo: QC mới truy cập được **folder Colab thứ hai** (Session 2–8). Folder thứ nhất vẫn trả về 401 (chưa chia sẻ), nên các trích dẫn "Ví dụ 1.3 / 1.5 / 2.10" trong mục 5.2 của báo cáo tách pha chưa đối chiếu được với tài liệu gốc.
 
 ### 2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn
 
