@@ -27,6 +27,15 @@ def test_otsu_splits_bimodal():
     assert -31 < otsu_threshold(values) < -20
 
 
+def test_otsu_matches_opencv_reference():
+    """Self-implemented Otsu agrees with cv2.THRESH_OTSU on a bimodal image (within 1 bin)."""
+    rng = np.random.default_rng(0)
+    img = np.clip(np.r_[rng.normal(70, 12, 4000), rng.normal(185, 15, 6000)], 0, 255).astype(np.uint8)
+    reference, _ = cv2.threshold(img.reshape(100, 100), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ours = otsu_threshold(img.astype(float))
+    assert abs(ours - reference) <= 2
+
+
 def test_rallies_are_quiet_court_stretches_with_serve_and_reaction():
     df, meta = timeline(MATCH)
     rallies = detect_rallies(df, meta)
