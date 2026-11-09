@@ -283,14 +283,24 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <td>chưa chạy</td>
 </tr>
 <tr>
-<td><strong>Optical flow Farneback</strong>; <strong>K-means</strong></td>
-<td>ngoài phạm vi Session 2–8 đã tải (có thể ở folder Colab thứ nhất, chưa truy cập được)</td>
-<td><code>pickleball.analyze_match</code>, <code>core.analyze</code></td>
-<td>hoạt động trên sân; fallback camera cố định; gom góc camera</td>
+<td><strong>Xử lý ảnh cơ bản</strong>: kênh màu, nhị phân hóa, lấy mẫu/lượng tử hóa</td>
+<td>Session 1 Ex1_1–1_3</td>
+<td>nền của mọi bước (chuyển xám, HSV, Lab, nhị phân)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Optical flow Farneback</strong>; <strong>K-means</strong>; <strong>MOG2</strong>; <strong>Non-Local Means</strong></td>
+<td><strong>không có trong cả hai folder Colab đã chia sẻ</strong> (toàn bộ Session 1–8 là xử lý ảnh tĩnh)</td>
+<td><code>pickleball.analyze_match</code>, <code>core.analyze</code>, <code>core.best_shots</code>, <code>photo_finish</code></td>
+<td>hoạt động trên sân; gom góc camera; trừ nền; khử nhiễu</td>
 </tr>
 </tbody>
 </table></div>
-<p>Ghi chú nguồn tham khảo: QC mới truy cập được <strong>folder Colab thứ hai</strong> (Session 2–8). Folder thứ nhất vẫn trả về 401 (chưa chia sẻ), nên các trích dẫn "Ví dụ 1.3 / 1.5 / 2.10" trong mục 5.2 của báo cáo tách pha chưa đối chiếu được với tài liệu gốc.</p>
+<p>Ghi chú nguồn tham khảo (đã truy cập cả hai folder Colab): folder thứ nhất chứa ảnh dữ liệu của từng session và notebook <code>Session_1.ipynb</code> (ảnh cơ bản); folder thứ hai chứa notebook Session 2–8. <strong>Hai điểm QC bắt thêm:</strong></p>
+<ol>
+<li>Trích dẫn trong mục 5.2 của báo cáo tách pha <strong>không khớp đánh số notebook</strong>: "unsharp mask (Ví dụ 1.3)" — nhưng Ex1_3 của Colab là <em>lấy mẫu và lượng tử hóa</em>; "Richardson–Lucy hoặc Wiener (Ví dụ 1.5, Bài 5)" — notebook không có Ex1_5, Wiener nằm ở Session 5 Ex5_2 (khớp "Bài 5"); "nội suy song khối (Ví dụ 2.10)" — Session 2 chỉ có Ex2_1–2_4, nội suy cubic nằm ở Session 3 Ex3_7; "lọc trung vị (Bài 5)" — notebook không có lọc trung vị (Session 4 chỉ có trung bình và min/max). Các "Ví dụ x.y" này nhiều khả năng đánh số theo <strong>slide</strong>, không có trong hai folder đã chia sẻ → khi viết báo cáo cuối, trích theo số Session + Ex của notebook (hoặc đính kèm slide) để người chấm tra được.</li>
+<li>Các kỹ thuật video của dự án (optical flow, MOG2, K-means, NLM) <strong>nằm ngoài tài liệu đã học được chia sẻ</strong>: trong báo cáo cuối nên trình bày chúng là phần mở rộng tự nghiên cứu dựa trên nền tảng môn học (trừ ảnh → trừ nền; lọc không gian → lọc thời gian), không gộp chung vào "thuật toán đã học".</li>
+</ol>
 <h3 id="23-bong-chet-va-ranh-gioi-pha-ung-luat-ung-muc-khiem-ton">2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn</h3>
 <ul>
 <li>Định nghĩa trong báo cáo (mục 3.1) khớp luật hai lần nảy của pickleball: một lần bóng chạm sàn <strong>không</strong> kết thúc pha; pha chỉ đóng khi bóng chạm sàn mà không còn cú chạm vợt nào sau đó (tức nảy lần hai/bóng chết), ra ngoài, hoặc vào lưới.</li>

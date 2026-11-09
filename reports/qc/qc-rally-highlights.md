@@ -58,9 +58,13 @@ Cột "Bài học" đối chiếu với notebook Colab của môn (Session 2–8
 | **Tăng nét**: unsharp mask / kernel khử mờ; **giảm mờ**: lọc nghịch đảo regularized với PSF vệt thẳng (họ Wiener) | Session 5 Ex5_1 (kernel khử mờ), Ex5_2 (Butterworth + **Wiener**) | `photo_finish.finish_photo` | ảnh góc ngang; lưu cả ảnh gốc và thông số JSON |
 | **Cân bằng phổ / CLAHE** | Session 2 Ex2_2–2_4, Session 8 (CLAHE trong DoH) | chưa dùng trong luồng chính (ứng viên cho tiền xử lý ảnh góc ngang) | — |
 | **Nội suy khi phóng ảnh** (nearest/linear/cubic) | Session 3 Ex3_7 | kế hoạch mục 5.2 báo cáo tách pha (song khối) | chưa chạy |
-| **Optical flow Farneback**; **K-means** | ngoài phạm vi Session 2–8 đã tải (có thể ở folder Colab thứ nhất, chưa truy cập được) | `pickleball.analyze_match`, `core.analyze` | hoạt động trên sân; fallback camera cố định; gom góc camera |
+| **Xử lý ảnh cơ bản**: kênh màu, nhị phân hóa, lấy mẫu/lượng tử hóa | Session 1 Ex1_1–1_3 | nền của mọi bước (chuyển xám, HSV, Lab, nhị phân) | — |
+| **Optical flow Farneback**; **K-means**; **MOG2**; **Non-Local Means** | **không có trong cả hai folder Colab đã chia sẻ** (toàn bộ Session 1–8 là xử lý ảnh tĩnh) | `pickleball.analyze_match`, `core.analyze`, `core.best_shots`, `photo_finish` | hoạt động trên sân; gom góc camera; trừ nền; khử nhiễu |
 
-Ghi chú nguồn tham khảo: QC mới truy cập được **folder Colab thứ hai** (Session 2–8). Folder thứ nhất vẫn trả về 401 (chưa chia sẻ), nên các trích dẫn "Ví dụ 1.3 / 1.5 / 2.10" trong mục 5.2 của báo cáo tách pha chưa đối chiếu được với tài liệu gốc.
+Ghi chú nguồn tham khảo (đã truy cập cả hai folder Colab): folder thứ nhất chứa ảnh dữ liệu của từng session và notebook `Session_1.ipynb` (ảnh cơ bản); folder thứ hai chứa notebook Session 2–8. **Hai điểm QC bắt thêm:**
+
+1. Trích dẫn trong mục 5.2 của báo cáo tách pha **không khớp đánh số notebook**: "unsharp mask (Ví dụ 1.3)" — nhưng Ex1_3 của Colab là *lấy mẫu và lượng tử hóa*; "Richardson–Lucy hoặc Wiener (Ví dụ 1.5, Bài 5)" — notebook không có Ex1_5, Wiener nằm ở Session 5 Ex5_2 (khớp "Bài 5"); "nội suy song khối (Ví dụ 2.10)" — Session 2 chỉ có Ex2_1–2_4, nội suy cubic nằm ở Session 3 Ex3_7; "lọc trung vị (Bài 5)" — notebook không có lọc trung vị (Session 4 chỉ có trung bình và min/max). Các "Ví dụ x.y" này nhiều khả năng đánh số theo **slide**, không có trong hai folder đã chia sẻ → khi viết báo cáo cuối, trích theo số Session + Ex của notebook (hoặc đính kèm slide) để người chấm tra được.
+2. Các kỹ thuật video của dự án (optical flow, MOG2, K-means, NLM) **nằm ngoài tài liệu đã học được chia sẻ**: trong báo cáo cuối nên trình bày chúng là phần mở rộng tự nghiên cứu dựa trên nền tảng môn học (trừ ảnh → trừ nền; lọc không gian → lọc thời gian), không gộp chung vào "thuật toán đã học".
 
 ### 2.3 "Bóng chết" và ranh giới pha — đúng luật, đúng mức khiêm tốn
 
