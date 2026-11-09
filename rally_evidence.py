@@ -52,8 +52,17 @@ def ball_candidates(frame,previous=None,roi=(0.,0.,1.,1.),hue=(18,48)):
     return found
 
 
-def track_ball(source,start,end,out,roi=(0.,0.,1.,1.),hue=(18,48),progress=None):
-    """Native-fps inspectable baseline; draws only observed candidates, resets on loss/cut."""
+def track_ball(source,start,end,out,roi=(0.,0.,1.,1.),hue=(18,48),progress=None,bounce_vy=None,dead_gap=2.5):
+    """Native-fps inspectable baseline; draws only observed candidates, resets on loss/cut.
+
+    Besides direction-change candidates it emits, all unconfirmed:
+    - bounce_candidate: screen-vertical velocity flips from down to up (> bounce_vy px/frame
+      both ways, default 0.2% of frame height so centroid jitter at high resolutions
+      does not count) on a continuous track - the trajectory shape of a floor bounce;
+    - dead_ball_candidate: a second bounce within dead_gap seconds of the first with no
+      direction-change (possible paddle hit) between them - the two-bounce dead-ball rule.
+    Both are image-space trajectory shapes, not a floor or paddle detector: a human confirms.
+    """
     if not np.isfinite(start+end) or not 0<=start<end or end-start>120:
         raise ValueError('Chọn đoạn kiểm tra dài tối đa 120 giây.')
     if not (0<=roi[0]<roi[2]<=1 and 0<=roi[1]<roi[3]<=1): raise ValueError('Vùng sân không hợp lệ.')
@@ -64,7 +73,7 @@ def track_ball(source,start,end,out,roi=(0.,0.,1.,1.),hue=(18,48),progress=None)
     if end>duration+1/fps: cap.release(); raise ValueError('Khoảng kiểm tra vượt video.')
     first=int(np.ceil(start*fps)); count=max(1,int(np.floor(end*fps))-first)
     cap.set(cv2.CAP_PROP_POS_FRAMES,first)
-    writer=None; prev=None; last=None; velocity=np.zeros(2); lost=0; track_id=0
+    writer=None; prev=None; last=None; velocity=np.zeros(2); lost=0; track_id=0; last_bounce=None
     rows=[]; history=[]; events=[]
     tmp=out/'overlay_work.mp4'
     try:
@@ -76,12 +85,12 @@ def track_ball(source,start,end,out,roi=(0.,0.,1.,1.),hue=(18,48),progress=None)
                 writer=cv2.VideoWriter(str(tmp),cv2.VideoWriter_fourcc(*'mp4v'),fps,(w,h))
                 if not writer.isOpened(): raise ValueError('Không ghi được video bằng chứng.')
             cut=prev is not None and np.mean(cv2.absdiff(gray,prev))/255>.25
-            if cut: last=None; history=[]; lost=0
+            if cut: last=None; history=[]; lost=0; last_bounce=None
             candidates=ball_candidates(frame,prev,roi,hue); t=(first+j)/fps; selected=None
             if not cut and candidates:
                 if last is None:
                     # Reacquisition is explicitly a new track, not continuity evidence.
-                    selected=max(candidates,key=lambda p:p[2]); track_id+=1; velocity=np.zeros(2); history=[]
+                    selected=max(candidates,key=lambda p:p[2]); track_id+=1; velocity=np.zeros(2); history=[]; last_bounce=None
                 else:
                     predicted=last+velocity*(lost+1)
                     best=min(candidates,key=lambda p:np.linalg.norm(np.array(p[:2])-predicted))
@@ -89,12 +98,24 @@ def track_ball(source,start,end,out,roi=(0.,0.,1.,1.),hue=(18,48),progress=None)
             if selected:
                 position=np.array(selected[:2]); last_velocity=velocity.copy()
                 if last is not None: velocity=(position-last)/(lost+1)
-                if len(history)>=3 and lost==0 and np.linalg.norm(velocity)>2 and np.linalg.norm(last_velocity)>2:
-                    cosine=np.dot(velocity,last_velocity)/(np.linalg.norm(velocity)*np.linalg.norm(last_velocity))
-                    if cosine<.3 and (not events or t-events[-1]['time']>.2):
+                if len(history)>=3 and lost==0 and (not events or t-events[-1]['time']>.2):
+                    # Bounce: screen-vertical velocity flips down -> up on a continuous track.
+                    vy_min=bounce_vy if bounce_vy is not None else max(1.,h*.002)
+                    bounce=last_velocity[1]>vy_min and velocity[1]<-vy_min
+                    speeds=np.linalg.norm(velocity),np.linalg.norm(last_velocity)
+                    turn=(not bounce and min(speeds)>2 and
+                          np.dot(velocity,last_velocity)/(speeds[0]*speeds[1])<.3)
+                    if bounce or turn:
                         name=f'turn_{len(events):04d}.jpg'
                         cv2.imwrite(str(out/name),frame)
-                        events.append(dict(time=t,kind='direction_change_candidate',confirmed=False,keyframe=name))
+                        events.append(dict(time=t,kind='bounce_candidate' if bounce else 'direction_change_candidate',confirmed=False,keyframe=name))
+                        if bounce:
+                            if last_bounce is not None and t-last_bounce<=dead_gap:
+                                # Second bounce, no possible paddle hit in between: dead-ball rule.
+                                events.append(dict(time=t,kind='dead_ball_candidate',confirmed=False,keyframe=name,bounces=[float(last_bounce),float(t)]))
+                                last_bounce=None
+                            else: last_bounce=t
+                        else: last_bounce=None    # a possible paddle hit restarts the bounce count
                 last=position; lost=0; history.append(tuple(map(int,position))); history=history[-12:]
                 rows.append(dict(frame=first+j,time=t,x=float(position[0]),y=float(position[1]),observed=True,track_id=track_id,candidate_count=len(candidates)))
                 for a,b in zip(history,history[1:]): cv2.line(frame,a,b,(0,255,255),2)
@@ -102,7 +123,7 @@ def track_ball(source,start,end,out,roi=(0.,0.,1.,1.),hue=(18,48),progress=None)
             else:
                 lost+=1; history=[]
                 rows.append(dict(frame=first+j,time=t,x=np.nan,y=np.nan,observed=False,track_id=track_id,candidate_count=len(candidates)))
-                if lost>max(2,round(fps*.15)): last=None; velocity=np.zeros(2)
+                if lost>max(2,round(fps*.15)): last=None; velocity=np.zeros(2); last_bounce=None
             cv2.putText(frame,f'{t:.3f}s | BALL CANDIDATE - NOT VERIFIED',(10,25),cv2.FONT_HERSHEY_SIMPLEX,.55,(255,255,255),2)
             writer.write(frame); prev=gray
             if progress and j%max(1,int(fps))==0: progress((j+1)/count)

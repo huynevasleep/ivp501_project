@@ -217,6 +217,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><strong>Timecode pha</strong> = từ cú giao bóng tới sự kiện kết thúc, mỗi bên cộng một khoảng đệm.</li>
 </ol>
 <p>Rủi ro đã biết: bóng chỉ vài pixel và bị nhòe khi bay nhanh; bị lưới, người che; góc dọc sân khó thấy độ cao bóng. Cần thử trên vài pha trước khi kết luận cách này làm được.</p>
+<p><strong>Cập nhật QC 09/11:</strong> công cụ quỹ đạo (<code>rally_evidence.track_ball</code>) nay tự đề xuất thêm <strong>ứng viên bóng nảy</strong> (vận tốc dọc đổi dấu rơi→bật, ngưỡng 0,2 % chiều cao khung) và <strong>ứng viên bóng chết</strong> (nảy lần hai trong ≤ 2,5 s không có ứng viên đổi hướng ở giữa — luật hai lần nảy), tất cả <code>confirmed=false</code> cho bảng xác nhận. Đã chứng minh trên video tổng hợp (2 test trong <code>tests/test_evidence.py</code>) và thử trên <strong>hai video Shorts thật</strong>: quỹ đạo vẽ đúng điểm nảy thật khi giới hạn ROI vùng sân, nhưng bám nhầm vật vàng tĩnh khi không có ROI, và đổi dấu vận tốc chưa phân biệt được chạm sàn với cú vợt đánh bổng — chi tiết, số đo và lệnh chạy lại ở <a href="../qc/qc-rally-highlights.md">báo cáo QC mục 6</a>. Bước 7 (sự kiện) của kế hoạch trên vì vậy đã có bản nháp chạy được; <strong>V3/V4 còn lại phần so với đếm tay và phân biệt chạm vợt bằng vị trí cầu thủ</strong>.</p>
 <h2 id="4-muc-tieu-2-ghep-cac-pha-thanh-highlight">4. Mục tiêu 2: ghép các pha thành highlight</h2>
 <ul>
 <li><strong>Chọn pha</strong> (<code>select(mode='rally')</code>): xếp theo điểm giảm dần, lấy dần cho tới hết ngân sách thời lượng. <strong>Một pha hoặc lấy trọn, hoặc bỏ</strong>, không cắt ngắn. Có thể dùng knapsack 0/1 thay cho tham lam.</li>
@@ -312,7 +313,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <td>1</td>
 <td>Có script chạy được, hình quỹ đạo bóng vẽ chồng lên khung, và tỉ lệ khung có bóng bắt được so với đếm tay trên các pha thử</td>
 <td>Mục 3.3</td>
-<td></td>
+<td>QC 09/11 (một phần: script + quỹ đạo trên 2 Shorts thật, xem báo cáo QC mục 6; còn đo so với đếm tay)</td>
 </tr>
 <tr>
 <td>V4</td>
@@ -320,7 +321,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <td>1</td>
 <td>Có timecode từng cú chạm, so với đếm tay trên các pha thử</td>
 <td>Mục 3.3; khi ổn thì thay timecode ở mục 4</td>
-<td></td>
+<td>QC 09/11 (một phần: ứng viên nảy/bóng chết; còn phân biệt chạm vợt và đo so với đếm tay)</td>
 </tr>
 <tr>
 <td>V5</td>

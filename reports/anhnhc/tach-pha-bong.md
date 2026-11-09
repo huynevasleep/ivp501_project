@@ -127,6 +127,8 @@ Các bước đề xuất, đều là kỹ thuật trong môn học:
 
 Rủi ro đã biết: bóng chỉ vài pixel và bị nhòe khi bay nhanh; bị lưới, người che; góc dọc sân khó thấy độ cao bóng. Cần thử trên vài pha trước khi kết luận cách này làm được.
 
+**Cập nhật QC 09/11:** công cụ quỹ đạo (`rally_evidence.track_ball`) nay tự đề xuất thêm **ứng viên bóng nảy** (vận tốc dọc đổi dấu rơi→bật, ngưỡng 0,2 % chiều cao khung) và **ứng viên bóng chết** (nảy lần hai trong ≤ 2,5 s không có ứng viên đổi hướng ở giữa — luật hai lần nảy), tất cả `confirmed=false` cho bảng xác nhận. Đã chứng minh trên video tổng hợp (2 test trong `tests/test_evidence.py`) và thử trên **hai video Shorts thật**: quỹ đạo vẽ đúng điểm nảy thật khi giới hạn ROI vùng sân, nhưng bám nhầm vật vàng tĩnh khi không có ROI, và đổi dấu vận tốc chưa phân biệt được chạm sàn với cú vợt đánh bổng — chi tiết, số đo và lệnh chạy lại ở [báo cáo QC mục 6](../qc/qc-rally-highlights.md). Bước 7 (sự kiện) của kế hoạch trên vì vậy đã có bản nháp chạy được; **V3/V4 còn lại phần so với đếm tay và phân biệt chạm vợt bằng vị trí cầu thủ**.
+
 ## 4. Mục tiêu 2: ghép các pha thành highlight
 
 - **Chọn pha** (`select(mode='rally')`): xếp theo điểm giảm dần, lấy dần cho tới hết ngân sách thời lượng. **Một pha hoặc lấy trọn, hoặc bỏ**, không cắt ngắn. Có thể dùng knapsack 0/1 thay cho tham lam.
@@ -182,8 +184,8 @@ Cách nhận: ghi tên mình và ngày vào cột "Người nhận" trong bảng
 |---|---|---|---|---|---|
 | V1 | Tìm video pickleball phát sóng ≥ 1080p, có camera góc ngang | 1, 3 | Có file hoặc link dùng được, kèm URL, tác giả, giấy phép, ngày truy cập (theo mục "Dữ liệu và giao thức" của README) | `README.md` mục dữ liệu; mục 5.2 | |
 | V2 | Gán nhãn người cho trận thử: start/end từng pha theo định nghĩa mục 3.1 | 1, 2 | Có file JSON nhãn (định dạng ở README, tạo được ở tab "Gán nhãn" của app) cho ít nhất một đoạn của trận, và F1 của bản nền so với nhãn đó | Mục 2, mục 3.2 | |
-| V3 | Thử bắt bóng theo kế hoạch mục 3.3 trên vài pha | 1 | Có script chạy được, hình quỹ đạo bóng vẽ chồng lên khung, và tỉ lệ khung có bóng bắt được so với đếm tay trên các pha thử | Mục 3.3 | |
-| V4 | Nhận cú chạm vợt và lúc bóng chạm sàn từ quỹ đạo (cần V3) | 1 | Có timecode từng cú chạm, so với đếm tay trên các pha thử | Mục 3.3; khi ổn thì thay timecode ở mục 4 | |
+| V3 | Thử bắt bóng theo kế hoạch mục 3.3 trên vài pha | 1 | Có script chạy được, hình quỹ đạo bóng vẽ chồng lên khung, và tỉ lệ khung có bóng bắt được so với đếm tay trên các pha thử | Mục 3.3 | QC 09/11 (một phần: script + quỹ đạo trên 2 Shorts thật, xem báo cáo QC mục 6; còn đo so với đếm tay) |
+| V4 | Nhận cú chạm vợt và lúc bóng chạm sàn từ quỹ đạo (cần V3) | 1 | Có timecode từng cú chạm, so với đếm tay trên các pha thử | Mục 3.3; khi ổn thì thay timecode ở mục 4 | QC 09/11 (một phần: ứng viên nảy/bóng chết; còn phân biệt chạm vợt và đo so với đếm tay) |
 | V5 | Giữ cảnh sân quay bằng camera lia (đang bị loại, xem giới hạn mục 3.2) | 1 | Các pha có đoạn camera lia không còn bị mất hoặc cắt đôi; so số pha trước và sau | Mục 3.2 | |
 | V6 | Ảnh góc ngang: chỉ lấy camera góc ngang, tăng nét, giảm mờ theo mục 5.2 | 3 | Bộ ảnh trước và sau xử lý của cùng các khung, kèm thông số bộ lọc đã dùng | Mục 5 | |
 | V7 | Đọc bảng điểm (số điểm, chấm giao bóng) bằng so khớp mẫu chữ số làm mốc kết thúc pha, thay cho tiếng reo | 1, 2 | Có chuỗi điểm số theo thời gian; số lần đổi điểm gần bằng số pha thật (đếm tay trên một đoạn) và không lần nào rơi giữa pha | Mục 3.1, 3.3 | anhnhc |

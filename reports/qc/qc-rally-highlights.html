@@ -64,7 +64,12 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 </li>
 <li><a href="#4-gioi-han-cua-chinh-ot-qc-nay">4. Giới hạn của chính đợt QC này</a></li>
 <li><a href="#5-viec-mo-sau-qc-ai-nhan-thi-ghi-ten-theo-ung-co-che-muc-7-cua-bao-cao-tach-pha">5. Việc mở sau QC (ai nhận thì ghi tên, theo đúng cơ chế mục 7 của báo cáo tách pha)</a></li>
-<li><a href="#6-sinh-lai-ban-html">6. Sinh lại bản HTML</a></li>
+<li><a href="#6-bo-sung-sau-qc-ung-vien-bong-nay-bong-chet-va-anh-gia-tren-hai-video-that">6. Bổ sung sau QC: ứng viên bóng nảy / bóng chết, và đánh giá trên hai video thật</a><ul>
+<li><a href="#61-a-lam-them-nhan-viec-theo-co-che-muc-7-bao-cao-tach-pha">6.1 Đã làm thêm (nhận việc theo cơ chế mục 7 báo cáo tách pha)</a></li>
+<li><a href="#62-anh-gia-tren-hai-video-that-youtube-shorts-moi-video-mot-pha-camera-on">6.2 Đánh giá trên hai video thật (YouTube Shorts, mỗi video một pha, camera đơn)</a></li>
+</ul>
+</li>
+<li><a href="#7-sinh-lai-ban-html">7. Sinh lại bản HTML</a></li>
 </ol></nav>
 
 <p>Nhiệm vụ QC: kiểm tra tính chính xác của các thuật toán đã khai báo (detect biên, detect mặt sân, detect hình học/vạch sân, bóng chạm vợt, bóng chết), kiểm tra rằng <strong>từng bước chọn timecode highlight đều mô tả được và chứng minh được bằng code + test</strong>, và bắt mọi khẳng định trong báo cáo mà repo không chứng minh được.</p>
@@ -80,7 +85,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <tbody>
 <tr>
 <td><code>.venv/bin/python -m pytest -q</code></td>
-<td><strong>36 passed</strong> (33 passed + 2 skipped trước khi chạy smoke test tạo fixture; 35 sau smoke test; 36 sau khi QC thêm test hồi quy mục 3.1)</td>
+<td><strong>38 passed</strong> (33 + 2 skipped ban đầu; 36 sau test hồi quy mục 3.1; 38 sau 2 test bóng nảy/bóng chết mục 6.1)</td>
 </tr>
 <tr>
 <td><code>.venv/bin/python smoke_test.py</code></td>
@@ -89,6 +94,10 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <tr>
 <td><code>.venv/bin/python reports/qc/qc_experiments.py</code></td>
 <td>4/4 ca PASS <strong>sau khi sửa lỗi mục 3.1</strong> (trước khi sửa: ca "một cụm duy nhất" FAIL)</td>
+</tr>
+<tr>
+<td><code>.venv/bin/python reports/qc/danh_gia_video_that.py &lt;video&gt; [--roi …]</code></td>
+<td>đánh giá trên hai video thật, kết quả ở mục 6.2</td>
 </tr>
 </tbody>
 </table></div>
@@ -319,7 +328,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <h3 id="32-chua-chung-minh-uoc-timecode-highlight-hien-tai-khong-en-tu-bongvotsan">3.2 Chưa chứng minh được: timecode highlight hiện tại KHÔNG đến từ bóng–vợt–sàn</h3>
 <p>Đây là khoảng trống lớn nhất giữa mục tiêu đề tài và bằng chứng hiện có, và cả hai báo cáo đều <strong>đã tự khai đúng</strong> — QC xác nhận khai báo khớp code:</p>
 <ul>
-<li>Không có detector mặt vợt, không có detector bóng chạm sàn, không có bộ đếm "nảy hai lần". Ranh giới pha của highlight đang lấy từ <em>camera sân + khán giả im</em> (gián tiếp), không phải từ sự kiện bóng.</li>
+<li>Không có detector mặt vợt, không có detector bóng chạm sàn. Ranh giới pha của highlight đang lấy từ <em>camera sân + khán giả im</em> (gián tiếp), không phải từ sự kiện bóng. <em>(Cập nhật sau QC: đã có <strong>ứng viên</strong> bóng nảy và bóng chết hai-lần-nảy từ hình dạng quỹ đạo — mục 6 — nhưng chúng vẫn là gợi ý cho người xác nhận, chưa tham gia chọn timecode.)</em></li>
 <li><code>direction_change_candidate</code> (cosine hai vận tốc &lt; 0,3 trong <code>track_ball</code>) <strong>không phân biệt</strong> chạm vợt / chạm sàn / nhiễu bám; overlay cũng ghi rõ "BALL CANDIDATE – NOT VERIFIED". Ngoài ra, cú nảy mà thành phần ngang của vận tốc chiếm ưu thế có thể không đổi hướng đủ mạnh để cosine &lt; 0,3 — tức ứng viên đổi hướng <strong>không bảo đảm bắt được mọi cú nảy</strong>, chưa nói đến phân loại.</li>
 <li>Vậy: mọi câu trong báo cáo cuối cùng dạng "highlight được chọn vì bóng chết / vì bóng chạm vợt lúc X" đều <strong>chưa chứng minh được bằng pipeline tự động</strong>; chỉ được phép nói vậy cho các pha đi qua bảng xác nhận sự kiện của người xem (<code>rallies_from_events</code>). Ai viết report thuyết trình cần giữ đúng ranh giới này.</li>
 </ul>
@@ -387,7 +396,50 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 </tr>
 </tbody>
 </table></div>
-<h2 id="6-sinh-lai-ban-html">6. Sinh lại bản HTML</h2>
+<h2 id="6-bo-sung-sau-qc-ung-vien-bong-nay-bong-chet-va-anh-gia-tren-hai-video-that">6. Bổ sung sau QC: ứng viên bóng nảy / bóng chết, và đánh giá trên hai video thật</h2>
+<h3 id="61-a-lam-them-nhan-viec-theo-co-che-muc-7-bao-cao-tach-pha">6.1 Đã làm thêm (nhận việc theo cơ chế mục 7 báo cáo tách pha)</h3>
+<p><code>track_ball</code> nay tự đề xuất thêm hai loại bằng chứng, đều <code>confirmed=false</code> và chỉ là <em>gợi ý từ hình dạng quỹ đạo</em> cho bảng xác nhận của người xem:</p>
+<ul>
+<li><strong><code>bounce_candidate</code> (bóng nảy):</strong> vận tốc dọc màn hình đổi dấu từ rơi xuống sang bật lên trên một track liên tục, ngưỡng mặc định 0,2 % chiều cao khung (để nhiễu trọng tâm ở video phân giải cao không bị tính).</li>
+<li><strong><code>dead_ball_candidate</code> (bóng chết, luật hai lần nảy):</strong> lần nảy thứ hai trong ≤ 2,5 s sau lần nảy trước mà <strong>không có</strong> ứng viên đổi hướng (cú chạm vợt khả dĩ) ở giữa; chuỗi nảy được reset khi đổi hướng, mất dấu, cắt cảnh hoặc track mới.</li>
+</ul>
+<p>Chứng minh trên video tổng hợp (bóng parabol nảy 2 lần, 24 fps): đúng 1 <code>dead_ball_candidate</code> tại lần nảy thứ hai; chèn một cú đảo hướng ngang giữa hai lần nảy thì không còn bóng chết nào — <code>tests/test_evidence.py::test_two_bounces_without_paddle_hit_flag_a_dead_ball</code> và <code>::test_a_direction_change_between_bounces_resets_the_dead_ball_count</code>. Toàn bộ suite: <strong>38 passed</strong>.</p>
+<h3 id="62-anh-gia-tren-hai-video-that-youtube-shorts-moi-video-mot-pha-camera-on">6.2 Đánh giá trên hai video thật (YouTube Shorts, mỗi video một pha, camera đơn)</h3>
+<p>Video (tải bằng yt-dlp về <code>video_thu_nghiem/</code>, không commit): ① https://www.youtube.com/shorts/WQo-yvMozaI — trong nhà, đôi, 1080×1920, 24 fps, 14,3 s; ② https://www.youtube.com/shorts/eqp3tj8Y_Hg — ngoài trời có mái, 720×1280, 30 fps, 12,4 s. Lệnh chạy lại: <code>.venv/bin/python reports/qc/danh_gia_video_that.py &lt;video&gt; [--roi 0.05,0.3,0.85,0.95]</code>; overlay, CSV và ảnh mốc nằm trong <code>runs/qc_eval/</code>.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Đo</th>
+<th>Video ① (trong nhà)</th>
+<th>Video ② (ngoài trời)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nhận camera sân (khuôn biên)</td>
+<td>6/12 cụm là sân; <strong>34 %</strong> khung vượt ngưỡng → bản nền chỉ tách được pha cuối [11,5→14,3 s]</td>
+<td>11/12 cụm là sân; <strong>84 %</strong> khung vượt ngưỡng → tách đúng cả clip là một pha [0→12,4 s]</td>
+</tr>
+<tr>
+<td>Bám bóng toàn khung</td>
+<td>97,7 % khung nối được</td>
+<td>87,4 % khung nối được <strong>nhưng bám nhầm vật vàng tĩnh trên hàng rào</strong> (kiểm bằng mắt overlay)</td>
+</tr>
+<tr>
+<td>Bám bóng với ROI vùng sân</td>
+<td>28 sự kiện/14 s (đôi đánh nhanh trên lưới: nhiều đổi hướng thật)</td>
+<td>64,2 % khung nối, <strong>bám đúng bóng</strong>: quỹ đạo vẽ chuẩn đường bóng rơi tới điểm nảy thật tại ~3,0 s (kiểm bằng mắt)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Kết luận đo được:</strong></p>
+<ol>
+<li><strong>Vẽ quỹ đạo trên video thật: hoạt động.</strong> Overlay video ② (ROI) vẽ đường bóng cong xuống đúng điểm chạm sàn.</li>
+<li><strong><code>observation_fraction</code> cao không phải bám đúng — nay có bằng chứng cụ thể:</strong> video ② toàn khung đạt 87 % nhưng vòng bám nằm trên một vật vàng <strong>tĩnh</strong> ở hàng rào (rung máy làm vật tĩnh lọt mặt nạ chuyển động, khởi tạo lại chọn blob lớn nhất). Giới hạn ROI vùng sân (tính năng có sẵn) khắc phục được. Mọi lần chạy đều phải kiểm overlay bằng mắt.</li>
+<li><strong>Nảy theo đổi dấu vận tốc dọc chưa phân biệt được chạm sàn với cú vợt đánh bổng lên</strong>, và nhạy với ngưỡng: ngưỡng 1 px/khung sinh nảy giả theo nhịp rung; ngưỡng 0,2 % chiều cao lọc sạch nhiễu nhưng cũng rụng một ứng viên bóng chết cuối pha (11,1 s, video ②) có vẻ hợp lý. → <code>dead_ball_candidate</code> dùng đúng như thiết kế: <strong>gợi ý cho người xác nhận</strong>, chưa đủ làm <code>rally_end</code> tự động; V4 vẫn mở phần phân biệt chạm vợt (cần vị trí cầu thủ) và so với đếm tay.</li>
+<li><strong>Bản nền tách pha hoạt động đúng thiết kế trên camera cố định</strong> (video ②, một pha trọn vẹn — các cụm K-means cùng một camera đều được nhận là sân), nhưng <strong>yếu với video quay tay rung</strong> (video ①: khuôn biên trôi → 34 % khung đạt): video dọc tự quay nên dùng pipeline pickleball cục bộ hoặc cần ổn định hình trước.</li>
+</ol>
+<h2 id="7-sinh-lai-ban-html">7. Sinh lại bản HTML</h2>
 <pre><code class="language-bash">.venv/bin/pip install markdown
 .venv/bin/python reports/build_html.py
 </code></pre>

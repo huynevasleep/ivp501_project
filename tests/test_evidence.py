@@ -65,6 +65,39 @@ def video(tmp_path):
     return path
 
 
+def bouncing_video(path,reverse_mid=False):
+    """Ball on a parabola: floor bounces at t=1s and t=2s (24 fps); optionally a sharp
+    horizontal reversal (a paddle-like hit) at t=1.5s between the two bounces."""
+    writer=cv2.VideoWriter(str(path),cv2.VideoWriter_fourcc(*'mp4v'),24,(320,240))
+    x=30.
+    for j in range(72):
+        x+=-3. if reverse_mid and j>=36 else 3.
+        y=200-80*abs(np.sin(np.pi*j/24))
+        frame=np.full((240,320,3),30,np.uint8)
+        cv2.circle(frame,(int(x),int(y)),5,(0,255,255),-1)
+        writer.write(frame)
+    writer.release()
+    return path
+
+
+def test_two_bounces_without_paddle_hit_flag_a_dead_ball(tmp_path):
+    _,events,_,_=track_ball(bouncing_video(tmp_path/'bounce.mp4'),0,3,tmp_path/'evidence')
+    bounces=[e for e in events if e['kind']=='bounce_candidate']
+    dead=[e for e in events if e['kind']=='dead_ball_candidate']
+    assert len(bounces)>=2
+    assert len(dead)==1
+    assert dead[0]['time']==pytest.approx(2.,abs=.2)
+    assert dead[0]['bounces'][0]==pytest.approx(1.,abs=.2)
+    assert all(not e['confirmed'] for e in events)
+
+
+def test_a_direction_change_between_bounces_resets_the_dead_ball_count(tmp_path):
+    _,events,_,_=track_ball(bouncing_video(tmp_path/'hit.mp4',reverse_mid=True),0,3,tmp_path/'evidence')
+    kinds=[e['kind'] for e in events]
+    assert 'direction_change_candidate' in kinds
+    assert 'dead_ball_candidate' not in kinds
+
+
 def test_tracking_outputs_native_fps_evidence(video,tmp_path):
     table,events,overlay,report=track_ball(video,0,3,tmp_path/'evidence')
     assert len(table)==72

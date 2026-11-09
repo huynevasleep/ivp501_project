@@ -12,7 +12,7 @@ from photo_finish import finish_photo
 def render_tools(state):
     out=state['out']; source=state['source']; duration=state['meta']['duration']; key=out.name
     with st.expander('1 · Kiểm tra bóng và bằng chứng ranh giới pha'):
-        st.write('Theo dõi ứng viên bóng vàng/xanh ở FPS gốc trong một đoạn ngắn. Dấu đổi hướng chỉ là gợi ý: chưa chứng minh bóng chạm mặt vợt hay sàn. Mất dấu cũng không được coi là hết pha.')
+        st.write('Theo dõi ứng viên bóng vàng/xanh ở FPS gốc trong một đoạn ngắn. Dấu đổi hướng, bóng nảy (vận tốc dọc đổi dấu) và bóng chết (nảy 2 lần liên tiếp không có đổi hướng ở giữa) đều chỉ là gợi ý từ hình dạng quỹ đạo: chưa chứng minh bóng chạm mặt vợt hay sàn. Mất dấu cũng không được coi là hết pha.')
         a=st.number_input('Bắt đầu đoạn kiểm tra (giây)',0.,duration,0.,key=f'track_a_{key}')
         b=st.number_input('Kết thúc đoạn kiểm tra (giây)',0.,duration,min(duration,15.),key=f'track_b_{key}')
         hue=st.slider('Màu bóng: khoảng Hue HSV (0–179)',0,179,(18,48),key=f'hue_{key}')
@@ -29,8 +29,11 @@ def render_tools(state):
             e=state['evidence']; st.video(str(e['video']))
             st.caption(f"{e['diagnostics']['observation_fraction']:.1%} khung có ứng viên được nối. Đây không phải độ chính xác nhận bóng; cần đối chiếu video.")
             if e['events']:
+                evidence_names={'direction_change_candidate':'Ứng viên đổi hướng (có thể chạm vợt)',
+                                'bounce_candidate':'Ứng viên bóng nảy (chạm sàn)',
+                                'dead_ball_candidate':'Ứng viên bóng chết (nảy 2 lần)'}
                 table=pd.DataFrame(e['events'])[['time','kind']].rename(columns={'time':'Mốc gợi ý (giây)','kind':'Loại bằng chứng'})
-                table['Loại bằng chứng']='Ứng viên đổi hướng — chưa xác nhận'
+                table['Loại bằng chứng']=table['Loại bằng chứng'].map(evidence_names).fillna(table['Loại bằng chứng'])+' — chưa xác nhận'
                 st.dataframe(table,hide_index=True)
             data=io.BytesIO()
             with zipfile.ZipFile(data,'w',zipfile.ZIP_DEFLATED) as z:
