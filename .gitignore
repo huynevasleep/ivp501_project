@@ -5,3 +5,4 @@ runs/
 *.mp4
 colab_tham_khao/
 video_thu_nghiem/
+.DS_Store
