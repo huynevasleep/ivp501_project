@@ -29,9 +29,18 @@ def decision_data(df, meta, segments):
             loud = df.loudness_db.iloc[k]
             samples.append(dict(r=i, t=round(float(t[k]), 2), cam=int(df.camera.iloc[k]), court=bool(court[k]), img=str(df.image.iloc[k]),
                                 score=round(float(df.court_score.iloc[k]), 3) if has_score else None,
-                                db=None if np.isnan(loud) else round(float(loud), 1), quiet=bool(quiet[k])))
+                                db=None if np.isnan(loud) else round(float(loud), 1), quiet=bool(quiet[k]),
+                                edges=str(df.edges.iloc[k]) if 'edges' in df else None,
+                                rec=round(float(df.court_recall.iloc[k]), 3) if 'court_recall' in df else None,
+                                prec=round(float(df.court_precision.iloc[k]), 3) if 'court_precision' in df else None,
+                                tpl=int(df.court_template.iloc[k]) if 'court_template' in df else None))
+    hist = None
+    if has_score:                                       # Otsu view when no Hough applies to a frame
+        counts, edges = np.histogram(df.court_score.to_numpy(), bins=40, range=(0, 1))
+        hist = dict(counts=counts.tolist(), lo=0., hi=1.)
     return dict(rallies=rallies, samples=samples, court_threshold=meta.get('court_threshold'),
-                loud_threshold=loud_cut, court_lines=meta.get('court_lines', {}), total=offset)
+                loud_threshold=loud_cut, court_lines=meta.get('court_lines', {}), total=offset,
+                court_debug=meta.get('court_debug', {}), score_hist=hist)
 
 
 def render(video, df, meta, segments, out, height=560):
@@ -45,8 +54,13 @@ def render(video, df, meta, segments, out, height=560):
     media = runtime.get_instance().media_file_mgr
     url = media.add(str(video), 'video/mp4', f'decision_view:{video}')
     data = decision_data(df, meta, segments)
+    add = lambda name, kind: media.add(str(Path(out)/name), kind, f'decision_view:{out}:{name}')
     for s in data['samples']:
-        s['img'] = media.add(str(Path(out)/s['img']), 'image/jpeg', f'decision_view:{out}:{s["img"]}')
+        s['img'] = add(s['img'], 'image/jpeg')
+        if s['edges'] and (Path(out)/s['edges']).exists(): s['edges'] = add(s['edges'], 'image/png')
+        else: s['edges'] = None
+    for cam in data['court_debug'].values():            # debug images of each court camera
+        cam['template'] = add(cam['template'], 'image/png'); cam['hough'] = add(cam['hough'], 'image/png')
     data = json.dumps(data, ensure_ascii=False)
     components.html(_HTML.replace('__URL__', url).replace('__DATA__', data), height=height, scrolling=False)
 
@@ -62,6 +76,12 @@ button{background:var(--card);color:var(--fg);border:1px solid var(--line);borde
 button:hover{border-color:var(--accent)}
 #panel{width:380px;flex:none;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;transition:width .2s}
 #panel.min{width:42px;padding:6px;overflow:hidden}
+#panel.debug{width:620px}
+#dbg{display:none}#panel.debug #dbg{display:block}#panel.debug #normalcap{display:none}
+.cols{display:flex;gap:8px}.cols>.main{flex:1;min-width:0}.cols>.side{width:0;overflow:hidden}#panel.debug .cols>.side{width:210px;flex:none;overflow:visible}
+.tabs{display:flex;gap:4px;margin:4px 0}.tabs button{padding:2px 8px;font-size:12px}.tabs button.on{border-color:var(--accent);color:var(--accent)}
+.kv{font-size:12px;color:var(--muted);margin-top:4px}.kv b{color:var(--fg);font-weight:600}
+
 #panel.min .body{display:none}
 #panel .head{display:flex;justify-content:space-between;align-items:center;gap:6px}
 #panel.min .head{flex-direction:column}
@@ -80,11 +100,15 @@ canvas{width:100%;border-radius:6px;display:block}
 </style></head><body><div id="wrap">
 <div id="left"><video id="v" src="__URL__" controls preload="metadata"></video>
 <div id="bar"><button id="prev">◀ Pha trước</button><button id="next">Pha sau ▶</button><span id="pos" class="muted"></span></div></div>
-<aside id="panel"><div class="head"><span class="title">Code đang quyết định gì?</span><button id="tog" title="Thu gọn / mở rộng">⟨⟩</button></div>
+<aside id="panel"><div class="head"><span class="title">Code đang quyết định gì?</span><span><button id="dbgbtn" title="Ảnh xám / nhị phân và Hough mà code dùng">Debug</button> <button id="tog" title="Thu gọn / mở rộng">⟨⟩</button></span></div>
 <div class="body">
 <div class="row"><span id="rally" class="title"></span> <span id="phase" class="chip"></span><div id="src" class="muted"></div></div>
+<div class="cols"><div class="main">
+<div id="dbg"><div class="tabs"><button data-v="gray" class="on">Xám</button><button data-v="canny">Canny (nhị phân)</button><button data-v="match">Khớp khuôn (nhị phân)</button></div></div>
 <canvas id="kf" width="320" height="180"></canvas>
 <div class="muted" id="kfcap" style="font-size:12px;margin-top:3px"></div>
+<div id="dbgcap" class="kv"></div>
+</div><div class="side"><div class="kv" id="sidetitle" style="margin-top:0"></div><canvas id="side" width="200" height="300"></canvas><div class="kv" id="sidecap"></div></div></div>
 <div class="row"><div class="lbl"><span>Camera sân (khớp khuôn biên)</span><span id="cs"></span></div><div class="meter"><div class="fill" id="csf"></div><div class="tick" id="cst"></div></div></div>
 <div class="row"><div class="lbl"><span>Âm lượng khán giả</span><span id="ld"></span></div><div class="meter"><div class="fill" id="ldf"></div><div class="tick" id="ldt"></div></div></div>
 <div class="row"><div class="lbl"><span>Pha hiện tại theo thời gian (bấm để tua)</span></div><canvas id="strip" width="360" height="46"></canvas>
@@ -110,13 +134,55 @@ function drawStrip(R,src){const w=strip.width,h=strip.height;sc.clearRect(0,0,w,
 // player clock onto the timecodes proportionally (0.25 s over 62 clips measured).
 const clock=()=>v.duration&&isFinite(v.duration)?v.currentTime*D.total/v.duration:v.currentTime;
 const seekTo=ht=>{v.currentTime=v.duration&&isFinite(v.duration)?ht*v.duration/D.total:ht};
-const cache={};
-function drawKeyframe(S){if(!S)return;let im=cache[S.img];
- if(!im){im=cache[S.img]=new Image();im.onload=()=>{if(last===S)drawKeyframe(S)};im.src=S.img}
- last=S;if(!im.complete||!im.naturalWidth)return;kf.drawImage(im,0,0,320,180);
- const lines=S.court?(D.court_lines[String(S.cam)]||[]):[];kf.strokeStyle='#3ecf6e';kf.lineWidth=2;
- for(const l of lines){kf.beginPath();kf.moveTo(l[0],l[1]);kf.lineTo(l[2],l[3]);kf.stroke()}
- kf.strokeStyle=S.court?'#3ecf6e':'#ef6b5b';kf.lineWidth=4;kf.strokeRect(2,2,316,176)}
+const cache={},pix={};let debug=false,view='gray';
+const side=$('side').getContext('2d');
+function img(url,S){if(!url)return null;let im=cache[url];if(!im){im=cache[url]=new Image();im.onload=()=>{if(last===S)drawKeyframe(S)};im.src=url}return im.complete&&im.naturalWidth?im:null}
+function pixels(url,im){if(pix[url])return pix[url];const c=document.createElement('canvas');c.width=320;c.height=180;const x=c.getContext('2d');x.drawImage(im,0,0,320,180);
+ try{return pix[url]=x.getImageData(0,0,320,180).data}catch(e){return null}}
+function dilate(m){const o=new Uint8Array(m.length);for(let y=0;y<180;y++)for(let x=0;x<320;x++){if(!m[y*320+x])continue;
+ for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const yy=y+dy,xx=x+dx;if(yy>=0&&yy<180&&xx>=0&&xx<320)o[yy*320+xx]=1}}return o}
+function binary(url,im){const d=pixels(url,im);if(!d)return null;const m=new Uint8Array(320*180);for(let i=0;i<m.length;i++)m[i]=d[i*4]>127?1:0;return m}
+function drawSegs(segs){for(const g of segs){kf.strokeStyle=g.kept?'#3ecf6e':'#ef6b5b';kf.lineWidth=g.kept?2:1.5;kf.setLineDash(g.kept?[]:[4,3]);
+ kf.beginPath();kf.moveTo(g.seg[0],g.seg[1]);kf.lineTo(g.seg[2],g.seg[3]);kf.stroke()}kf.setLineDash([])}
+const done={};
+function drawKeyframe(S){if(!S)return;last=S;const rgb=img(S.img,S);if(!rgb)return;
+ const key=(debug?view:'rgb')+'|'+S.img+'|'+S.tpl;if(done.key===key&&done.ok)return;done.key=key;done.ok=false;
+ const cd=S.tpl!=null?D.court_debug[String(S.tpl)]:null;
+ if(!debug){kf.drawImage(rgb,0,0,320,180);
+  const lines=S.court?(D.court_lines[String(S.cam)]||[]):[];kf.strokeStyle='#3ecf6e';kf.lineWidth=2;
+  for(const l of lines){kf.beginPath();kf.moveTo(l[0],l[1]);kf.lineTo(l[2],l[3]);kf.stroke()}done.ok=true}
+ else if(view==='gray'){const d=pixels(S.img,rgb);if(d){const out=kf.createImageData(320,180);
+   for(let i=0;i<320*180;i++){const y=Math.round(.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2]);out.data[i*4]=out.data[i*4+1]=out.data[i*4+2]=y;out.data[i*4+3]=255}
+   kf.putImageData(out,0,0);done.ok=true}else kf.drawImage(rgb,0,0,320,180)}
+ else if(view==='canny'){const e=img(S.edges,S);kf.fillStyle='#000';kf.fillRect(0,0,320,180);if(e){kf.drawImage(e,0,0,320,180);done.ok=true}if(S.court&&cd)drawSegs(cd.segments)}
+ else{const e=img(S.edges,S),t=cd?img(cd.template,S):null;kf.fillStyle='#000';kf.fillRect(0,0,320,180);
+  if(e&&t){const E=binary(S.edges,e),T=binary(cd.template,t);if(E&&T){const Ew=dilate(E),Tw=dilate(T),out=kf.createImageData(320,180);
+   for(let i=0;i<E.length;i++){let c=[0,0,0];if(T[i]&&Ew[i])c=[62,207,110];else if(T[i])c=[90,96,108];else if(E[i]&&!Tw[i])c=[239,107,91];else if(E[i])c=[62,207,110];
+    out.data[i*4]=c[0];out.data[i*4+1]=c[1];out.data[i*4+2]=c[2];out.data[i*4+3]=255}kf.putImageData(out,0,0);done.ok=true}}}
+ kf.strokeStyle=S.court?'#3ecf6e':'#ef6b5b';kf.lineWidth=4;kf.strokeRect(2,2,316,176);
+ if(debug){const n=S.rec==null?'':'khớp khuôn cam '+S.tpl+': recall <b>'+S.rec.toFixed(2)+'</b> · precision <b>'+S.prec.toFixed(2)+'</b> → Dice <b>'+(S.score??0).toFixed(2)+'</b> (ngưỡng Otsu '+(D.court_threshold??0).toFixed(2)+')';
+  const leg={gray:'Ảnh xám: đầu vào của Gauss 3×3 → Canny.',canny:'Canny 50/150 sau Gauss 3×3 (đúng ảnh code lưu). Đoạn Hough của khuôn: xanh = vạch sơn giữ, đỏ đứt = loại.',
+   match:'Xanh = biên trùng khuôn · đỏ = biên của khung không nằm trên khuôn (làm giảm precision) · xám = khuôn không thấy trong khung (làm giảm recall).'}[view];
+  $('dbgcap').innerHTML=leg+'<br>'+n;if(!drawSide(S,cd))done.ok=false}}
+function drawSide(S,cd){const w=200,h=300;side.fillStyle='#0b0d11';side.fillRect(0,0,w,h);side.font='10px system-ui';
+ const hough=S.court&&cd?img(cd.hough,S):null;if(S.court&&cd&&!hough)return false;
+ if(hough){const H=270,X0=10;$('sidetitle').innerHTML='Không gian Hough (θ, ρ) của khuôn cam '+S.tpl;
+  side.drawImage(hough,0,0,cd.theta_bins,cd.rho_bins,X0,0,180,H);
+  for(const g of cd.segments){const x=X0+g.rho_theta[1],y=(g.rho_theta[0]+cd.rho_max)/(2*cd.rho_max)*H;
+   side.strokeStyle=g.kept?'#3ecf6e':'#ef6b5b';side.lineWidth=2;side.beginPath();
+   if(g.kept)side.arc(x,y,5,0,7);else{side.moveTo(x-4,y-4);side.lineTo(x+4,y+4);side.moveTo(x+4,y-4);side.lineTo(x-4,y+4)}side.stroke()}
+  side.fillStyle='#9aa3ad';side.fillText('θ 0°',X0,H+12);side.fillText('180°',X0+158,H+12);side.fillText('ρ↓',0,10);
+  const k=cd.segments.filter(g=>g.kept).length;$('sidecap').innerHTML='Mỗi điểm biên bỏ phiếu cho mọi đường đi qua nó; đỉnh sáng = đường thẳng. <span class="ok">○ '+k+' vạch sơn</span> · <span class="bad">× '+(cd.segments.length-k)+' loại</span> (mép băng rôn, bảng QC).'}
+ else if(D.score_hist){const c=D.score_hist.counts,mx=Math.max(...c.map(v=>Math.log1p(v))),H=250,bw=180/c.length,X0=10;
+  $('sidetitle').innerHTML='Khung này không qua Hough → Otsu trên điểm khớp khuôn (cả trận)';
+  c.forEach((v,i)=>{const bh=Math.log1p(v)/mx*H;side.fillStyle=(i+.5)/c.length>(D.court_threshold??1)?'#3ecf6e':'#5a606c';side.fillRect(X0+i*bw,H-bh,bw-1,bh)});
+  const tx=X0+(D.court_threshold??0)*180;side.strokeStyle='#e8e6e1';side.setLineDash([3,3]);side.beginPath();side.moveTo(tx,0);side.lineTo(tx,H);side.stroke();side.setLineDash([]);
+  if(S.score!=null){const sx=X0+S.score*180;side.fillStyle='#5aa9ff';side.beginPath();side.moveTo(sx,H+2);side.lineTo(sx-5,H+10);side.lineTo(sx+5,H+10);side.fill()}
+  side.fillStyle='#9aa3ad';side.fillText('0',X0,H+22);side.fillText('Dice 1',X0+150,H+22);
+  $('sidecap').innerHTML='Histogram (thang log) điểm khớp khuôn của mọi khung; nét đứt = ngưỡng Otsu '+(D.court_threshold??0).toFixed(2)+'; ▲ = khung hiện tại ('+(S.score??0).toFixed(2)+').'}
+ else{$('sidetitle').textContent='Không có dữ liệu debug (phân tích lại video)';$('sidecap').textContent=''}return true}
+$('dbgbtn').onclick=()=>{debug=!debug;done.key=null;$('panel').classList.toggle('debug',debug);$('dbgbtn').classList.toggle('on',debug);if(last)drawKeyframe(last)};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{view=b.dataset.v;done.key=null;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));if(last)drawKeyframe(last)});
 let last=null;
 function update(){const ht=clock(),ri=rallyAt(ht),R=D.rallies[ri];const src=R.start+(ht-R.hl_start);const S=sampleAt(ri,src);cur=ri;
  $('rally').textContent='Pha '+(ri+1)+'/'+D.rallies.length;$('pos').textContent='Highlight '+fmt(ht)+' / '+fmt(D.total);

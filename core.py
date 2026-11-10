@@ -50,14 +50,40 @@ def _edges(gray):
 _TOLERANCE = np.ones((3, 3), np.uint8)       # a 1-pixel shift of an edge still counts as the same edge
 
 
-def edge_dice(edges, template, template_wide):
-    """Two-way agreement of an edge map with a template: Dice of
-    recall (template edges found in the frame) and precision (frame edges lying on the template).
+def edge_match(edges, template, template_wide):
+    """(Dice, recall, precision) of an edge map against a template.
+    recall = template edges found in the frame; precision = frame edges lying on the template.
     Precision keeps busy images (crowd, aerial shots), whose dense edges cover any template, low."""
     wide = cv2.dilate(edges.astype(np.uint8), _TOLERANCE) > 0
     recall = (wide & template).sum()/max(template.sum(), 1)
     precision = (edges & template_wide).sum()/max(edges.sum(), 1)
-    return float(2*recall*precision/max(recall+precision, 1e-9))
+    return float(2*recall*precision/max(recall+precision, 1e-9)), float(recall), float(precision)
+
+
+def edge_dice(edges, template, template_wide):
+    """Two-way agreement of an edge map with a template (Dice of recall and precision)."""
+    return edge_match(edges, template, template_wide)[0]
+
+
+def hough_space(binary, theta_step=1., rho_step=1.):
+    """Standard Hough transform: votes of every edge pixel for lines x cos(t) + y sin(t) = rho.
+    Returns (accumulator [rho, theta], rho_max); theta in [0, 180) degrees."""
+    ys, xs = np.nonzero(binary)
+    thetas = np.deg2rad(np.arange(0, 180, theta_step))
+    rho_max = float(np.hypot(*binary.shape))
+    n_rho = int(np.ceil(2*rho_max/rho_step))+1
+    acc = np.zeros((n_rho, len(thetas)), np.int32)
+    for j, t in enumerate(thetas):
+        rho = np.round((xs*np.cos(t)+ys*np.sin(t)+rho_max)/rho_step).astype(int)
+        acc[:, j] = np.bincount(rho, minlength=n_rho)[:n_rho]
+    return acc, rho_max
+
+
+def segment_rho_theta(segment):
+    """(rho, theta in degrees [0, 180)) of the line through a segment, matching hough_space."""
+    x1, y1, x2, y2 = map(float, segment)
+    theta = np.arctan2(-(x2-x1), y2-y1) % np.pi
+    return float(x1*np.cos(theta)+y1*np.sin(theta)), float(np.degrees(theta))
 
 
 def is_painted_line(gray, segment, inner=2, outer=5, samples=24):
@@ -96,7 +122,9 @@ def court_cameras(edges, camera, gray_of=None):
     painted lines (`is_painted_line` >= half the points) on the cluster's median frame; a
     court camera = fixed AND at least one court line. Without gray_of every Hough segment counts.
     Returns (per-frame best Dice against court templates, court cluster ids,
-             {cluster id: court line segments [x1, y1, x2, y2] in 320x180 pixels}).
+             {cluster id: court line segments [x1, y1, x2, y2] in 320x180 pixels},
+             debug: per-frame recall / precision / best court cluster, court templates,
+             every Hough segment with its painted-line share).
     """
     shape = (180, 320)
     unpack = lambda k: np.unpackbits(edges[k])[:shape[0]*shape[1]].reshape(shape).astype(bool)
@@ -107,22 +135,29 @@ def court_cameras(edges, camera, gray_of=None):
         wide = cv2.dilate(template.astype(np.uint8), _TOLERANCE) > 0
         match = np.median([edge_dice(unpack(k), template, wide) for k in idx])
         found = cv2.HoughLinesP(template.astype(np.uint8)*255, 1, np.pi/180, 30, minLineLength=shape[1]//5, maxLineGap=4)
-        lines = [] if found is None else [list(map(int, l)) for l in found[:, 0]]
-        if lines and gray_of is not None:
+        segments = [] if found is None else [list(map(int, l)) for l in found[:, 0]]
+        painted = [1.]*len(segments)
+        if segments and gray_of is not None:
             picks = idx[np.linspace(0, len(idx)-1, min(25, len(idx))).astype(int)]
             median = np.median([gray_of(k) for k in picks], axis=0)      # players and ball fade out
-            lines = [l for l in lines if is_painted_line(median, l) >= .5]
-        stats.append((c, len(idx), match, lines, template, wide))
+            painted = [is_painted_line(median, l) for l in segments]
+        lines = [l for l, f in zip(segments, painted) if f >= .5]
+        stats.append((c, len(idx), match, lines, template, wide, list(zip(segments, painted))))
     log_match = np.log(np.clip([s[2] for s in stats], 1e-3, None))
     cut = otsu_threshold(log_match, [s[1] for s in stats])
     # A single cluster cannot be split by Otsu (the threshold equals its own value),
     # so a one-camera video relies on the court-line gate alone.
     court = [s for s, m in zip(stats, log_match) if (len(stats) == 1 or m > cut) and s[3]]
-    score = np.zeros(len(camera))
+    score, recall, precision = np.zeros(len(camera)), np.zeros(len(camera)), np.zeros(len(camera))
+    best = np.full(len(camera), -1)
     for k in range(len(camera)):
         e = unpack(k)
-        score[k] = max((edge_dice(e, s[4], s[5]) for s in court), default=0.)
-    return score, [int(s[0]) for s in court], {int(s[0]): s[3] for s in court}
+        for s in court:
+            d, r, p = edge_match(e, s[4], s[5])
+            if d > score[k] or best[k] < 0: score[k], recall[k], precision[k], best[k] = d, r, p, s[0]
+    debug = dict(recall=recall, precision=precision, best=best,
+                 templates={int(s[0]): s[4] for s in court}, segments={int(s[0]): s[6] for s in court})
+    return score, [int(s[0]) for s in court], {int(s[0]): s[3] for s in court}, debug
 
 
 def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
@@ -183,12 +218,28 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
     df['cluster'] = KMeans(n_clusters=min(8, len(df), len(np.unique(histograms, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(histograms))
     df['camera'] = KMeans(n_clusters=min(12, len(df), len(np.unique(layouts, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(layouts))
     gray_of = lambda k: cv2.cvtColor(cv2.imread(str(out/rows[k]['image'])), cv2.COLOR_BGR2GRAY)
-    df['court_score'], court_ids, court_lines = court_cameras(np.asarray(edge_maps), df.camera.to_numpy(), gray_of)
+    df['court_score'], court_ids, court_lines, court_debug = court_cameras(np.asarray(edge_maps), df.camera.to_numpy(), gray_of)
+    df['court_recall'], df['court_precision'] = court_debug['recall'], court_debug['precision']
+    df['court_template'] = court_debug['best']
+    # Debug images: the binary maps the decisions are made on (1-bit PNG, ~1-2 KB each).
+    df['edges'] = [f'edge_{k:06d}.png' for k in range(len(df))]
+    for k, packed in enumerate(edge_maps):
+        cv2.imwrite(str(out/df.edges.iloc[k]), np.unpackbits(packed)[:180*320].reshape(180, 320)*255)
+    debug_meta = {}
+    for c, template in court_debug['templates'].items():
+        acc, rho_max = hough_space(template)
+        view = np.log1p(acc.astype(np.float64)); view = (255*view/max(view.max(), 1e-9)).astype(np.uint8)
+        cv2.imwrite(str(out/f'court_template_{c}.png'), template.astype(np.uint8)*255)
+        cv2.imwrite(str(out/f'court_hough_{c}.png'), view)
+        debug_meta[str(c)] = dict(template=f'court_template_{c}.png', hough=f'court_hough_{c}.png', rho_max=rho_max,
+                                  rho_bins=int(acc.shape[0]), theta_bins=int(acc.shape[1]),
+                                  segments=[dict(seg=seg, painted=round(float(f), 2), kept=bool(f >= .5),
+                                                 rho_theta=segment_rho_theta(seg)) for seg, f in court_debug['segments'][c]])
     df['loudness_db'] = audio_loudness(path, df.time.to_numpy(), step/fps)
     for col in ['motion', 'faces', 'sharpness', 'color', 'difference']:
         df[col+'_norm'] = normalize(df[col])
     meta = dict(duration=duration, fps=fps, frames=i, sample_fps=fps/step, cuts=cuts, threshold=threshold,
-                court_cameras=court_ids, court_lines={str(k): v for k, v in court_lines.items()}, court_threshold=otsu_threshold(df.court_score) if df.court_score.max() > 0 else 1.)
+                court_cameras=court_ids, court_lines={str(k): v for k, v in court_lines.items()}, court_debug=debug_meta, court_threshold=otsu_threshold(df.court_score) if df.court_score.max() > 0 else 1.)
     df.to_csv(out/'features.csv', index=False)
     (out/'metadata.json').write_text(json.dumps(meta, indent=2), encoding='utf-8')
     return df, meta

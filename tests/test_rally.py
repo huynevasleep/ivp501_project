@@ -116,9 +116,9 @@ def test_court_cameras_from_edges_alone():
     for _ in range(30):                                                                          # static banner: a straight step edge, no paint
         img = np.full((180, 320), 40, np.uint8); img[:70] = 220; frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(3)
     edges = np.array([np.packbits(_edges(f)) for f in frames])
-    _, ids_without_paint_check, _ = court_cameras(edges, camera)
+    _, ids_without_paint_check, _, _ = court_cameras(edges, camera)
     assert 3 in ids_without_paint_check                          # Hough alone takes the banner edge for a court line
-    score, court_ids, lines = court_cameras(edges, camera, lambda k: frames[k])
+    score, court_ids, lines, debug = court_cameras(edges, camera, lambda k: frames[k])
     assert court_ids == [0]
     assert score[:30].min() > .8 and score[30:].max() < .3
     assert len(lines[0]) >= 4                                   # the painted court lines, in pixels
@@ -153,3 +153,25 @@ def test_decision_panel_data_follows_detect_rallies():
     assert inside and all(s['court'] and s['quiet'] for s in inside)                   # the core is court + quiet
     assert all(s['r'] in (0, 1) for s in data['samples'])                               # only samples of kept rallies
     assert data['court_lines'] == meta['court_lines']
+
+
+def test_hough_peak_matches_segment_rho_theta():
+    from core import hough_space, segment_rho_theta
+    for seg in ([20, 50, 300, 50], [100, 10, 100, 170], [40, 160, 200, 30]):
+        img = np.zeros((180, 320), np.uint8); cv2.line(img, tuple(seg[:2]), tuple(seg[2:]), 255, 1)
+        acc, rho_max = hough_space(img > 0)
+        r, t = np.unravel_index(np.argmax(acc), acc.shape)
+        rho, theta = segment_rho_theta(seg)
+        assert abs((r-rho_max)-rho) <= 1.5 and min(abs(t-theta), 180-abs(t-theta)) <= 1.5
+
+
+def test_court_debug_is_consistent_with_score():
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(1)
+    frames = [_court_frame(rng) for _ in range(20)]
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    score, ids, lines, debug = court_cameras(edges, [0]*20, lambda k: frames[k])
+    r, p = debug['recall'], debug['precision']
+    assert np.allclose(score, 2*r*p/(r+p))
+    assert set(debug['best']) == {0} and debug['templates'][0].shape == (180, 320)
+    assert len(debug['segments'][0]) >= len(lines[0])                 # every Hough segment, kept or not
