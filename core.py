@@ -206,6 +206,26 @@ def _rank(x):
     return np.searchsorted(np.sort(x), x, side='right')/len(x)
 
 
+def court_mask(df, meta):
+    """Per sample: is a court camera on screen? (the rule detect_rallies uses)."""
+    if 'court_score' in df and 'court_threshold' in meta:
+        # Court camera from edges: the frame matches a fixed court camera's edge template.
+        return (df.court_score > meta['court_threshold']).to_numpy()
+    # Analyses made before edge templates existed: fixed cameras = low log median motion.
+    stats = df.groupby('camera').motion.agg(['median', 'size'])
+    log_motion = np.log(stats['median'].to_numpy()+1e-3)
+    fixed = stats.index[log_motion <= otsu_threshold(log_motion, stats['size'])]
+    return df.camera.isin(fixed).to_numpy()
+
+
+def quiet_mask(df):
+    """Per sample: is the crowd quiet? Returns (mask, Otsu threshold in dBFS or None without audio)."""
+    loud = df.loudness_db.to_numpy()
+    if np.isnan(loud).all(): return np.ones(len(df), bool), None
+    threshold = otsu_threshold(loud)
+    return loud < threshold, float(threshold)
+
+
 def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
     """Rallies of a broadcast racket-sport match, as whole intervals that are never cut.
 
@@ -219,17 +239,9 @@ def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
     if df.empty or 'camera' not in df or 'loudness_db' not in df:
         raise ValueError('Thiếu đặc trưng camera/âm thanh: hãy phân tích lại video.')
     step = 1/meta['sample_fps']; t = df.time.to_numpy(); duration = meta['duration']
-    if 'court_score' in df and 'court_threshold' in meta:
-        # Court camera from edges: the frame matches a fixed court camera's edge template.
-        court = (df.court_score > meta['court_threshold']).to_numpy()
-    else:
-        # Analyses made before edge templates existed: fixed cameras = low log median motion.
-        stats = df.groupby('camera').motion.agg(['median', 'size'])
-        log_motion = np.log(stats['median'].to_numpy()+1e-3)
-        fixed = stats.index[log_motion <= otsu_threshold(log_motion, stats['size'])]
-        court = df.camera.isin(fixed).to_numpy()
+    court = court_mask(df, meta)
     loud = df.loudness_db.to_numpy()
-    quiet = np.ones(len(df), bool) if np.isnan(loud).all() else loud < otsu_threshold(loud)
+    quiet, _ = quiet_mask(df)
     play = court & quiet
     # Bridge short gaps (a camera switch or a shout mid-rally) between two quiet stretches.
     hole = int(round(gap/step))

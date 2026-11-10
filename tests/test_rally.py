@@ -137,3 +137,19 @@ def test_detect_rallies_uses_edge_court_score():
     df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
     df['motion'] = 1.                                           # motion no longer decides
     assert [(r['core_start'], r['core_end']) for r in detect_rallies(df, meta)] == [(8., 20.), (27., 30.)]
+
+
+def test_decision_panel_data_follows_detect_rallies():
+    from decision_view import decision_data
+    df, meta = timeline(MATCH)
+    df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
+    meta['court_lines'] = {'0': [[20, 40, 300, 40]]}
+    chosen, _ = select(df, meta, ratio=1., mode='rally')
+    data = decision_data(df, meta, chosen)
+    assert [r['start'] for r in data['rallies']] == [c['start'] for c in chosen]
+    assert data['rallies'][1]['hl_start'] == chosen[0]['end']-chosen[0]['start']       # highlight clock
+    assert data['total'] == sum(c['end']-c['start'] for c in chosen)
+    inside = [s for s in data['samples'] if chosen[0]['core_start'] <= s['t'] < chosen[0]['core_end']]
+    assert inside and all(s['court'] and s['quiet'] for s in inside)                   # the core is court + quiet
+    assert all(s['r'] in (0, 1) for s in data['samples'])                               # only samples of kept rallies
+    assert data['court_lines'] == meta['court_lines']

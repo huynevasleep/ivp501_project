@@ -78,7 +78,12 @@ else:
             else: st.error('Không tìm thấy video nguồn để tách theo mốc đã lưu.')
         if f'split_{out.name}' in st.session_state:
             show_individual(st.session_state[f'split_{out.name}'],f'generic_{out.name}')
-        st.video(str(video))
+        if segments and 'core_start' in segments[0]:
+            # Rally mode: player + collapsible panel with the evidence used at each moment.
+            from decision_view import render as render_decisions
+            render_decisions(video, df, meta, segments, out)
+        else:
+            st.video(str(video))
         st.download_button('Tải highlight MP4',video.read_bytes(),'highlight.mp4','video/mp4')
         shots=json.loads((out/'shots.json').read_text(encoding='utf-8')) if (out/'shots.json').exists() else []
         if shots:
