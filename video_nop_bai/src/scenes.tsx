@@ -211,13 +211,14 @@ export const EndToEndScene: React.FC<{duration: number}> = ({duration}) => {
     <Scene duration={duration}>
       <Kicker>Kết quả đầu-cuối · {END2END.url}</Kicker>
       <H1 size={56}>Video {END2END.input} → còn {END2END.output} highlight</H1>
-      <div style={{display: 'flex', gap: 26, marginBottom: 34}}>
+      <div style={{display: 'flex', gap: 26, marginBottom: 16}}>
         {stat(END2END.input, 'video trận đấu đầu vào', 0)}
         {arrow}
         {stat(END2END.rallies, 'pha bóng tách tự động', 1)}
         {arrow}
         {stat(END2END.output, `highlight trọn pha (${END2END.percent} thời lượng gốc)`, 2)}
       </div>
+      <div style={{fontSize: 23, color: COLORS.dim, marginBottom: 26, lineHeight: 1.4}}>{END2END.note}</div>
       <div style={{display: 'flex', gap: 44, alignItems: 'center'}}>
         <Card style={{flex: 1.35, padding: 18}}>
           <Img src={staticFile('steps/b6_dong_thoi_gian.png')} style={{width: '100%', borderRadius: 10}} />
@@ -233,7 +234,7 @@ export const EndToEndScene: React.FC<{duration: number}> = ({duration}) => {
         >
           <OffthreadVideo muted src={staticFile('output_preview.mp4')} style={{width: '100%', display: 'block'}} />
           <div style={{fontSize: 22, color: COLORS.dim, padding: '10px 16px', background: 'rgba(0,0,0,.35)'}}>
-            Trích đoạn video highlight đầu ra (ghép các pha trọn vẹn, giữ âm thanh gốc)
+            MỘT pha trọn vẹn trong highlight đầu ra — các pha được nối tiếp nhau, giữ âm thanh gốc
           </div>
         </div>
       </div>

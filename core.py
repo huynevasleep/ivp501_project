@@ -172,7 +172,7 @@ def _rank(x):
     return np.searchsorted(np.sort(x), x, side='right')/len(x)
 
 
-def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
+def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3., use_audio=True):
     """Rallies of a broadcast racket-sport match, as whole intervals that are never cut.
 
     A rally is a quiet stretch while a fixed court camera is on screen: a frame is on a court camera
@@ -195,7 +195,10 @@ def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3.):
         fixed = stats.index[log_motion <= otsu_threshold(log_motion, stats['size'])]
         court = df.camera.isin(fixed).to_numpy()
     loud = df.loudness_db.to_numpy()
-    quiet = np.ones(len(df), bool) if np.isnan(loud).all() else loud < otsu_threshold(loud)
+    # use_audio=False: segment on the court camera alone. For broadcasts with nonstop
+    # commentary the "crowd hushes during play" assumption fails and the audio gate cuts
+    # rallies mid-play; court-only segments keep pauses but never split live play.
+    quiet = np.ones(len(df), bool) if (not use_audio or np.isnan(loud).all()) else loud < otsu_threshold(loud)
     play = court & quiet
     # Bridge short gaps (a camera switch or a shout mid-rally) between two quiet stretches.
     hole = int(round(gap/step))

@@ -101,7 +101,9 @@ def main(main_video, other_video):
     lines = cv2.HoughLinesP((template*255).astype(np.uint8), 1, np.pi/180, 30, minLineLength=64, maxLineGap=4)
     n_lines = 0 if lines is None else len(lines)
     for l in (lines if lines is not None else [])[:60]:
-        x1, y1, x2, y2 = l[0]; cv2.line(hough, (x1, y1), (x2, y2), (0, 220, 0), 2)
+        x1, y1, x2, y2 = l[0]
+        on_court = (y1+y2)/2 > template.shape[0]*.45       # nửa dưới khung = vạch sân/lưới
+        cv2.line(hough, (x1, y1), (x2, y2), (0, 220, 0) if on_court else (150, 150, 150), 2)
 
     def match_vis(test_frame):
         e = _edges(cv2.cvtColor(test_frame, cv2.COLOR_BGR2GRAY))
@@ -117,7 +119,7 @@ def main(main_video, other_video):
 
     fig, axes = plt.subplots(1, 4, figsize=(16, 3.9))
     show(axes[0], template, f'(a) Khuôn biên cụm sân\n(trung vị {len(members)} bản đồ biên của cụm)', 'gray')
-    show(axes[1], cv2.cvtColor(hough, cv2.COLOR_BGR2RGB), f'(b) Vạch Hough trên khuôn\n{n_lines} đường thẳng → đúng là sân')
+    show(axes[1], cv2.cvtColor(hough, cv2.COLOR_BGR2RGB), f'(b) {n_lines} đoạn thẳng ổn định trên khuôn\nxanh = vạch sân/lưới (nửa dưới), xám = cấu trúc khác')
     show(axes[2], vis_same, f'(c) Khung cùng camera sân\nDice = {dice_same:.2f} → nhận')
     show(axes[3], vis_other, f'(d) Khung của video khác\nDice = {dice_other:.2f} → loại')
     fig.suptitle('Nhận camera sân như pipeline thật: khuôn biên theo cụm, vạch Hough, so khớp Dice (xanh = khớp khuôn, đỏ = lệch)', fontsize=FS+2)

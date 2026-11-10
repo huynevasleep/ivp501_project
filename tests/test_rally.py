@@ -44,6 +44,12 @@ def test_rallies_are_quiet_court_stretches_with_serve_and_reaction():
     assert all(a['end'] <= b['start'] for a, b in zip(rallies, rallies[1:]))
 
 
+def test_without_audio_rallies_follow_the_court_camera_alone():
+    df, meta = timeline(MATCH)                    # loud mid-rally commentary must not split play
+    rallies = detect_rallies(df, meta, use_audio=False)
+    assert [(r['core_start'], r['core_end']) for r in rallies] == [(5., 20.), (24., 33.)]
+
+
 def test_pre_roll_does_not_reach_into_the_close_up():
     df, meta = timeline([(4, 1, -20), (6, 0, -31), (4, 1, -18)])   # close-up, then the serve right after the cut
     (rally,) = detect_rallies(df, meta)

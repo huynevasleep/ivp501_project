@@ -22,9 +22,9 @@ export const PIPELINE: { step: string; algo: string; img: string; cap: string }[
   { step: 'Lấy mẫu 2 khung/giây, thu 320×180', algo: 'Lấy mẫu', img: 'steps/b1_goc.png', cap: 'Khung mẫu 320×180 lấy từ video 11 phút' },
   { step: 'Giảm nhiễu Gauss 3×3 → detect biên Canny 50/150', algo: 'Canny', img: 'steps/b2_canny.png', cap: 'Bản đồ biên Canny của đúng khung đó' },
   { step: 'Khuôn biên mỗi cụm camera = trung vị bản đồ biên', algo: 'K-means + Dice', img: 'steps/b3_khuon.png', cap: 'Khuôn biên: chỉ giữ biên đứng yên qua các khung cùng cụm' },
-  { step: 'Camera sân = khuôn ổn định có vạch thẳng Hough', algo: 'Hough', img: 'steps/b4_hough.png', cap: 'Vạch Hough (xanh) trên khuôn → đây là camera sân' },
-  { step: 'Khán giả im = phía thấp của ngưỡng Otsu trên âm lượng', algo: 'Otsu', img: 'steps/b5_am_luong.png', cap: 'Phân bố âm lượng của video + ngưỡng Otsu tự chọn' },
-  { step: 'Pha = sân ∧ im; lấp lỗ ≤ 1 s, bỏ đoạn < 1,5 s (làm mượt)', algo: 'Đóng/mở 1-D', img: 'steps/b6_dong_thoi_gian.png', cap: 'Dải vàng = pha tách được trên toàn bộ video' },
+  { step: 'Camera sân = khuôn ổn định có vạch thẳng Hough', algo: 'Hough', img: 'steps/b4_hough.png', cap: 'Đoạn thẳng ổn định: xanh = vạch sân/lưới (nửa dưới), xám = khung mái, băng rôn' },
+  { step: 'Khán giả im = phía thấp của ngưỡng Otsu trên âm lượng', algo: 'Otsu', img: 'steps/b5_am_luong.png', cap: 'Âm lượng + ngưỡng Otsu — video này BLV nói suốt lúc đánh nên QC tắt điều kiện âm thanh' },
+  { step: 'Pha = sân ∧ im; lấp lỗ ≤ 1 s, bỏ đoạn < 1,5 s (làm mượt)', algo: 'Đóng/mở 1-D', img: 'steps/b6_dong_thoi_gian.png', cap: 'Dải vàng = 22 pha theo camera sân — không cắt giữa pha' },
   { step: 'Đệm +1 s trước (không lùi quá đầu cảnh sân) và +2 s sau', algo: 'Luật đệm', img: 'steps/b6_dong_thoi_gian.png', cap: 'Mỗi pha đệm thêm để giữ trọn cú giao bóng và tiếng reo' },
   { step: 'Chấm điểm pha → chọn trọn pha → ffmpeg cắt và nối', algo: 'Greedy / Knapsack', img: 'steps/b8_ket_qua.png', cap: 'Keyframe của 4 pha dài nhất được ghép vào highlight' },
 ];
@@ -32,7 +32,8 @@ export const PIPELINE: { step: string; algo: string; img: string; cap: string }[
 // Kết quả đầu-cuối trên video công khai (youtube.com/watch?v=PMRSb3ogWq4) — số từ runs/vi_du_dau_cuoi/ket_qua.json
 export const END2END = {
   url: 'youtube.com/watch?v=PMRSb3ogWq4',
-  input: '11,0 phút', rallies: '48 pha', output: '6,6 phút', percent: '60%',
+  input: '11,0 phút', rallies: '22 pha', output: '8,2 phút', percent: '75%',
+  note: 'Video này có bình luận viên nói trong lúc đánh nên QC tắt điều kiện "khán giả im" (chế độ đó cho 6,6 phút nhưng cắt pha giữa chừng) — tách thuần theo camera sân: không bao giờ cắt giữa pha.',
 };
 
 export const DEMO_CAPTIONS: { fromSec: number; text: string }[] = [
