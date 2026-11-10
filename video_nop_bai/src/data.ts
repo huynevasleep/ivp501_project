@@ -18,12 +18,12 @@ export const GOALS = [
 ];
 
 export const PIPELINE: { step: string; algo: string }[] = [
-  { step: 'Lấy mẫu 2 khung/giây, thu 320×180', algo: 'Lấy mẫu · Bài 1' },
-  { step: 'Giảm nhiễu Gauss 3×3 → detect biên Canny 50/150', algo: 'Canny · Bài 7' },
+  { step: 'Lấy mẫu 2 khung/giây, thu 320×180', algo: 'Lấy mẫu' },
+  { step: 'Giảm nhiễu Gauss 3×3 → detect biên Canny 50/150', algo: 'Canny' },
   { step: 'Khuôn biên mỗi cụm camera = trung vị bản đồ biên', algo: 'K-means + Dice' },
-  { step: 'Camera sân = khuôn ổn định có vạch thẳng Hough', algo: 'Hough · Bài 7' },
-  { step: 'Khán giả im = phía thấp của ngưỡng Otsu trên âm lượng', algo: 'Otsu · Bài 5' },
-  { step: 'Pha = sân ∧ im; lấp lỗ ≤ 1 s, bỏ đoạn < 1,5 s (làm mượt)', algo: 'Đóng/mở 1-D · Bài 6' },
+  { step: 'Camera sân = khuôn ổn định có vạch thẳng Hough', algo: 'Hough' },
+  { step: 'Khán giả im = phía thấp của ngưỡng Otsu trên âm lượng', algo: 'Otsu' },
+  { step: 'Pha = sân ∧ im; lấp lỗ ≤ 1 s, bỏ đoạn < 1,5 s (làm mượt)', algo: 'Đóng/mở 1-D' },
   { step: 'Đệm +1 s trước (không lùi quá đầu cảnh sân) và +2 s sau', algo: 'Luật đệm' },
   { step: 'Chấm điểm pha → chọn trọn pha → ffmpeg cắt và nối', algo: 'Greedy / Knapsack' },
 ];
@@ -36,14 +36,14 @@ export const DEMO_CAPTIONS: { fromSec: number; text: string }[] = [
 ];
 
 export const ALGOS: { name: string; where: string }[] = [
-  { name: 'Canny + Gauss (Bài 7)', where: 'Detect biên → nhận camera sân' },
-  { name: 'Biến đổi Hough (Bài 7)', where: 'Vạch sân, mép lưới trên khuôn biên' },
-  { name: 'Ngưỡng Otsu (Bài 5)', where: 'Cụm cố định · khung sân · âm lượng' },
-  { name: 'Hình thái học (Bài 6)', where: 'Dọn mặt nạ, dung sai so khớp biên 1 px' },
-  { name: 'Gán nhãn vùng (Bài 5)', where: 'Tách cầu thủ, ứng viên bóng' },
-  { name: 'Trừ ảnh (Bài 3)', where: 'Trừ nền, tách vật chuyển động' },
-  { name: 'Lọc nhiễu (Bài 4)', where: 'Gauss trước Canny, NLM trước tăng nét' },
-  { name: 'Wiener + unsharp (Bài 5)', where: 'Giảm mờ, tăng nét ảnh vận động viên' },
+  { name: 'Canny + Gauss', where: 'Detect biên → nhận camera sân' },
+  { name: 'Biến đổi Hough', where: 'Vạch sân, mép lưới trên khuôn biên' },
+  { name: 'Ngưỡng Otsu', where: 'Cụm cố định · khung sân · âm lượng' },
+  { name: 'Hình thái học', where: 'Dọn mặt nạ, dung sai so khớp biên 1 px' },
+  { name: 'Gán nhãn vùng', where: 'Tách cầu thủ, ứng viên bóng' },
+  { name: 'Trừ ảnh', where: 'Trừ nền, tách vật chuyển động' },
+  { name: 'Lọc nhiễu', where: 'Gauss trước Canny, NLM trước tăng nét' },
+  { name: 'Wiener + unsharp', where: 'Giảm mờ, tăng nét ảnh vận động viên' },
 ];
 
 export const RESULTS = [
