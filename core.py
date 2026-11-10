@@ -47,6 +47,7 @@ def _edges(gray):
     return cv2.Canny(cv2.GaussianBlur(gray, (3, 3), 0), 50, 150) > 0
 
 
+COURT_LINE_MIN = 320*15//100                 # shortest court line Hough keeps, px of a 320-wide frame
 _TOLERANCE = np.ones((3, 3), np.uint8)       # a 1-pixel shift of an edge still counts as the same edge
 
 
@@ -134,7 +135,10 @@ def court_cameras(edges, camera, gray_of=None):
         template = np.mean([unpack(k) for k in idx], axis=0) >= .5
         wide = cv2.dilate(template.astype(np.uint8), _TOLERANCE) > 0
         match = np.median([edge_dice(unpack(k), template, wide) for k in idx])
-        found = cv2.HoughLinesP(template.astype(np.uint8)*255, 1, np.pi/180, 30, minLineLength=shape[1]//5, maxLineGap=4)
+        # Shortest segment = 15% of the width (48 px): a far court camera keeps its sidelines and
+        # centre line around 50-60 px; 64 px (1/5) missed them. Measured on 3 court cameras of the
+        # main video + 3 QC videos: court cameras and rallies unchanged from 64 down to 44 px.
+        found = cv2.HoughLinesP(template.astype(np.uint8)*255, 1, np.pi/180, 30, minLineLength=COURT_LINE_MIN, maxLineGap=4)
         segments = [] if found is None else [list(map(int, l)) for l in found[:, 0]]
         painted = [1.]*len(segments)
         if segments and gray_of is not None:

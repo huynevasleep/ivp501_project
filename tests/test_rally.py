@@ -175,3 +175,17 @@ def test_court_debug_is_consistent_with_score():
     assert np.allclose(score, 2*r*p/(r+p))
     assert set(debug['best']) == {0} and debug['templates'][0].shape == (180, 320)
     assert len(debug['segments'][0]) >= len(lines[0])                 # every Hough segment, kept or not
+
+
+def test_short_diagonal_court_line_is_found():
+    """A far court camera's sideline runs ~55 px: shorter than 1/5 of the width, still a court line."""
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(2)
+    frames = []
+    for _ in range(20):
+        img = (rng.random((180, 320))*30+60).astype(np.uint8)
+        cv2.line(img, (100, 100), (120, 150), 255, 2)                 # ~54 px sideline, nothing longer
+        frames.append(cv2.GaussianBlur(img, (5, 5), 0))
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    _, ids, lines, _ = court_cameras(edges, [0]*20, lambda k: frames[k])
+    assert ids == [0] and lines[0]
