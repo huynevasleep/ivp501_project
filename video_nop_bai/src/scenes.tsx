@@ -216,7 +216,7 @@ export const EndToEndScene: React.FC<{duration: number}> = ({duration}) => {
         {arrow}
         {stat(END2END.rallies, END2END.ralliesLabel, 1)}
         {arrow}
-        {stat(END2END.output, `highlight trọn pha (${END2END.percent} thời lượng gốc)`, 2)}
+        {stat(END2END.output, `video highlight ghép lại (${END2END.percent} thời lượng gốc)`, 2)}
       </div>
       <div style={{fontSize: 23, color: COLORS.dim, marginBottom: 26, lineHeight: 1.4}}>{END2END.note}</div>
       <div style={{display: 'flex', gap: 44, alignItems: 'center'}}>
