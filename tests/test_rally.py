@@ -113,10 +113,23 @@ def test_court_cameras_from_edges_alone():
         cv2.circle(img, (int(cx), int(cy)), int(rng.integers(20, 60)), 255, -1); frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(1)
     for _ in range(30):                                                                          # static but with no straight lines
         img = np.zeros((180, 320), np.uint8); cv2.circle(img, (160, 90), 50, 255, -1); frames.append(cv2.GaussianBlur(img, (9, 9), 0)); camera.append(2)
+    for _ in range(30):                                                                          # static banner: a straight step edge, no paint
+        img = np.full((180, 320), 40, np.uint8); img[:70] = 220; frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(3)
     edges = np.array([np.packbits(_edges(f)) for f in frames])
-    score, court_ids = court_cameras(edges, camera)
+    _, ids_without_paint_check, _ = court_cameras(edges, camera)
+    assert 3 in ids_without_paint_check                          # Hough alone takes the banner edge for a court line
+    score, court_ids, lines = court_cameras(edges, camera, lambda k: frames[k])
     assert court_ids == [0]
     assert score[:30].min() > .8 and score[30:].max() < .3
+    assert len(lines[0]) >= 4                                   # the painted court lines, in pixels
+
+
+def test_painted_line_vs_banner_edge():
+    from core import is_painted_line
+    court = np.full((180, 320), 60, np.uint8); cv2.line(court, (20, 90), (300, 90), 230, 2)
+    banner = np.full((180, 320), 40, np.uint8); banner[:90] = 220
+    assert is_painted_line(court, (20, 89, 300, 89)) > .9          # segment on the border of the paint
+    assert is_painted_line(banner, (20, 90, 300, 90)) < .1
 
 
 def test_detect_rallies_uses_edge_court_score():

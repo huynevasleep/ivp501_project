@@ -60,15 +60,43 @@ def edge_dice(edges, template, template_wide):
     return float(2*recall*precision/max(recall+precision, 1e-9))
 
 
-def court_cameras(edges, camera):
+def is_painted_line(gray, segment, inner=2, outer=5, samples=24):
+    """Share of points along a Hough segment where a thin bright line runs beside it.
+
+    Canny marks the two borders of a painted court line, so the Hough segment lies on a border,
+    not on the paint. At each sample point the brightest pixel within `inner` px across the
+    segment must be brighter than both pixels `outer` px away on either side: a thin bright
+    ridge. The border of a banner or ad board is a step (bright on one side only) and fails.
+    """
+    x1, y1, x2, y2 = map(float, segment)
+    length = np.hypot(x2-x1, y2-y1)
+    if length == 0: return 0.
+    nx, ny = -(y2-y1)/length, (x2-x1)/length
+    h, w = gray.shape; hits = total = 0
+    for s in np.linspace(.1, .9, samples):
+        x, y = x1+s*(x2-x1), y1+s*(y2-y1)
+        offsets = range(-outer, outer+1)
+        points = {o: (int(round(x+o*nx)), int(round(y+o*ny))) for o in offsets}
+        if not all(0 <= px < w and 0 <= py < h for px, py in points.values()): continue
+        value = {o: float(gray[py, px]) for o, (px, py) in points.items()}
+        total += 1
+        hits += max(value[o] for o in range(-inner, inner+1)) > max(value[-outer], value[outer])
+    return hits/max(total, 1)
+
+
+def court_cameras(edges, camera, gray_of=None):
     """Find the fixed court cameras from edges alone and score every frame against them.
 
-    edges: (N, H*W/8) packed Canny maps; camera: K-means layout cluster per frame.
+    edges: (N, H*W/8) packed Canny maps; camera: K-means layout cluster per frame;
+    gray_of(k): the 320x180 grayscale frame k (used to tell painted lines from other edges).
     For each cluster the template is the median edge map (edge in >= half of its frames).
     A fixed camera keeps its edges in place, so its frames match its template; a hand-held
     or moving shot does not. Fixed clusters = high side of an Otsu split of log median
-    self-match (weighted by size); court = fixed AND its template has straight lines (Hough:
-    court lines, net). Returns (per-frame best Dice against court templates, court cluster ids).
+    self-match (weighted by size). Court lines = Hough segments of the template that are
+    painted lines (`is_painted_line` >= half the points) on the cluster's median frame; a
+    court camera = fixed AND at least one court line. Without gray_of every Hough segment counts.
+    Returns (per-frame best Dice against court templates, court cluster ids,
+             {cluster id: court line segments [x1, y1, x2, y2] in 320x180 pixels}).
     """
     shape = (180, 320)
     unpack = lambda k: np.unpackbits(edges[k])[:shape[0]*shape[1]].reshape(shape).astype(bool)
@@ -78,16 +106,23 @@ def court_cameras(edges, camera):
         template = np.mean([unpack(k) for k in idx], axis=0) >= .5
         wide = cv2.dilate(template.astype(np.uint8), _TOLERANCE) > 0
         match = np.median([edge_dice(unpack(k), template, wide) for k in idx])
-        lines = cv2.HoughLinesP(template.astype(np.uint8)*255, 1, np.pi/180, 30, minLineLength=shape[1]//5, maxLineGap=4)
-        stats.append((c, len(idx), match, 0 if lines is None else len(lines), template, wide))
+        found = cv2.HoughLinesP(template.astype(np.uint8)*255, 1, np.pi/180, 30, minLineLength=shape[1]//5, maxLineGap=4)
+        lines = [] if found is None else [list(map(int, l)) for l in found[:, 0]]
+        if lines and gray_of is not None:
+            picks = idx[np.linspace(0, len(idx)-1, min(25, len(idx))).astype(int)]
+            median = np.median([gray_of(k) for k in picks], axis=0)      # players and ball fade out
+            lines = [l for l in lines if is_painted_line(median, l) >= .5]
+        stats.append((c, len(idx), match, lines, template, wide))
     log_match = np.log(np.clip([s[2] for s in stats], 1e-3, None))
     cut = otsu_threshold(log_match, [s[1] for s in stats])
-    court = [s for s, m in zip(stats, log_match) if m > cut and s[3] > 0]
+    # A single cluster cannot be split by Otsu (the threshold equals its own value),
+    # so a one-camera video relies on the court-line gate alone.
+    court = [s for s, m in zip(stats, log_match) if (len(stats) == 1 or m > cut) and s[3]]
     score = np.zeros(len(camera))
     for k in range(len(camera)):
         e = unpack(k)
         score[k] = max((edge_dice(e, s[4], s[5]) for s in court), default=0.)
-    return score, [int(s[0]) for s in court]
+    return score, [int(s[0]) for s in court], {int(s[0]): s[3] for s in court}
 
 
 def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
@@ -147,12 +182,13 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
     duration = i/fps
     df['cluster'] = KMeans(n_clusters=min(8, len(df), len(np.unique(histograms, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(histograms))
     df['camera'] = KMeans(n_clusters=min(12, len(df), len(np.unique(layouts, axis=0))), random_state=42, n_init=10).fit_predict(np.asarray(layouts))
-    df['court_score'], court_ids = court_cameras(np.asarray(edge_maps), df.camera.to_numpy())
+    gray_of = lambda k: cv2.cvtColor(cv2.imread(str(out/rows[k]['image'])), cv2.COLOR_BGR2GRAY)
+    df['court_score'], court_ids, court_lines = court_cameras(np.asarray(edge_maps), df.camera.to_numpy(), gray_of)
     df['loudness_db'] = audio_loudness(path, df.time.to_numpy(), step/fps)
     for col in ['motion', 'faces', 'sharpness', 'color', 'difference']:
         df[col+'_norm'] = normalize(df[col])
     meta = dict(duration=duration, fps=fps, frames=i, sample_fps=fps/step, cuts=cuts, threshold=threshold,
-                court_cameras=court_ids, court_threshold=otsu_threshold(df.court_score) if df.court_score.max() > 0 else 1.)
+                court_cameras=court_ids, court_lines={str(k): v for k, v in court_lines.items()}, court_threshold=otsu_threshold(df.court_score) if df.court_score.max() > 0 else 1.)
     df.to_csv(out/'features.csv', index=False)
     (out/'metadata.json').write_text(json.dumps(meta, indent=2), encoding='utf-8')
     return df, meta
