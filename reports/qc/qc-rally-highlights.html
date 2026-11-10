@@ -67,6 +67,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><a href="#6-bo-sung-sau-qc-ung-vien-bong-nay-bong-chet-va-anh-gia-tren-hai-video-that">6. Bổ sung sau QC: ứng viên bóng nảy / bóng chết, và đánh giá trên hai video thật</a><ul>
 <li><a href="#61-a-lam-them-nhan-viec-theo-co-che-muc-7-bao-cao-tach-pha">6.1 Đã làm thêm (nhận việc theo cơ chế mục 7 báo cáo tách pha)</a></li>
 <li><a href="#62-anh-gia-tren-hai-video-that-youtube-shorts-moi-video-mot-pha-camera-on">6.2 Đánh giá trên hai video thật (YouTube Shorts, mỗi video một pha, camera đơn)</a></li>
+<li><a href="#63-vong-qc-1011-tren-video-11-phut-hai-gia-inh-bi-pha-hai-lan-khac-phuc-mot-han-che-con-lai">6.3 Vòng QC 10/11 trên video 11 phút: hai giả định bị phá, hai lần khắc phục, một hạn chế còn lại</a></li>
 </ul>
 </li>
 <li><a href="#7-sinh-lai-ban-html">7. Sinh lại bản HTML</a></li>
@@ -439,6 +440,14 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><strong>Nảy theo đổi dấu vận tốc dọc chưa phân biệt được chạm sàn với cú vợt đánh bổng lên</strong>, và nhạy với ngưỡng: ngưỡng 1 px/khung sinh nảy giả theo nhịp rung; ngưỡng 0,2 % chiều cao lọc sạch nhiễu nhưng cũng rụng một ứng viên bóng chết cuối pha (11,1 s, video ②) có vẻ hợp lý. → <code>dead_ball_candidate</code> dùng đúng như thiết kế: <strong>gợi ý cho người xác nhận</strong>, chưa đủ làm <code>rally_end</code> tự động; V4 vẫn mở phần phân biệt chạm vợt (cần vị trí cầu thủ) và so với đếm tay.</li>
 <li><strong>Bản nền tách pha hoạt động đúng thiết kế trên camera cố định</strong> (video ②, một pha trọn vẹn — các cụm K-means cùng một camera đều được nhận là sân), nhưng <strong>yếu với video quay tay rung</strong> (video ①: khuôn biên trôi → 34 % khung đạt): video dọc tự quay nên dùng pipeline pickleball cục bộ hoặc cần ổn định hình trước.</li>
 </ol>
+<h3 id="63-vong-qc-1011-tren-video-11-phut-hai-gia-inh-bi-pha-hai-lan-khac-phuc-mot-han-che-con-lai">6.3 Vòng QC 10/11 trên video 11 phút: hai giả định bị phá, hai lần khắc phục, một hạn chế còn lại</h3>
+<p>Stakeholder xem demo và nghi đoạn preview "bị cắt đứt giữa chừng pha". Điều tra (script <code>reports/qc/vi_du_dau_cuoi.py</code> + soi khung nguồn, ảnh <code>img/qc_cat_giua_pha.png</code>):</p>
+<ol>
+<li><strong>Chế độ mặc định (∧ khán giả im) cắt giữa pha — xác nhận.</strong> Pha bị đóng tại 55,5 s; khung 62 s cho thấy vẫn đang đánh; điểm kết thúc thật (~70 s, đập tay). Nguyên nhân: video có <strong>bình luận viên nói liên tục trong lúc đánh</strong>. Khắc phục: thêm <code>use_audio=False</code> cho <code>detect_rallies</code> + test <code>test_without_audio_rallies_follow_the_court_camera_alone</code>.</li>
+<li><strong>Chế độ camera sân cũng cắt tại 57,5 s — truy tiếp bằng chuỗi <code>court_score</code>:</strong> camera <strong>zoom theo bóng giữa pha</strong>, điểm khớp khuôn rơi 0,73–0,76, ngay dưới ngưỡng Otsu 0,78 suốt 60–72 s. Khắc phục: <strong>hysteresis</strong> (vào tại ngưỡng, duy trì tại 88% ngưỡng) + test <code>test_zoomed_court_shot_is_kept_by_hysteresis</code>; cứu được các đoạn zoom ổn định.</li>
+<li><strong>Còn lại:</strong> khoảnh khắc <em>chuyển</em> zoom (mờ chuyển động, điểm rơi tới 0,62 trong ~4 s) vẫn tách đoạn — thuộc việc mở V5 (bám khuôn có bù tỷ lệ). Vì vậy trên video này đầu ra được mô tả đúng mức là <strong>19 đoạn toàn sân liên tục / 8,8 phút (79%)</strong> — KHÔNG claim "pha trọn vẹn" (so sánh: bật âm thanh 51 mảnh / 7,1 phút). Suite sau hai sửa: <strong>41 test pass</strong>.</li>
+</ol>
+<p>Bài học QC: con số pha/phút tự nó không chứng minh gì — <strong>soi khung hình tại mốc cắt</strong> là phép kiểm bắt buộc, và chính nó bắt được cả hai lỗi trên.</p>
 <h2 id="7-sinh-lai-ban-html">7. Sinh lại bản HTML</h2>
 <pre><code class="language-bash">.venv/bin/pip install markdown
 .venv/bin/python reports/build_html.py

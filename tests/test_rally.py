@@ -149,6 +149,17 @@ def test_single_cluster_video_keeps_its_court_camera():
     assert court_ids == []
 
 
+def test_zoomed_court_shot_is_kept_by_hysteresis():
+    """A mid-rally zoom drops the template match just under the threshold: still the court."""
+    df, meta = timeline([(4, 1, -20), (4, 0, -31), (4, 0, -31), (4, 0, -31), (4, 1, -18)])
+    df['court_score'] = np.r_[np.full(8, .1), np.full(8, .9), np.full(8, .74), np.full(8, .9), np.full(8, .1)]
+    meta['court_threshold'] = .78
+    (rally,) = detect_rallies(df, meta)
+    assert (rally['core_start'], rally['core_end']) == (4., 16.)      # the zoomed middle is not cut out
+    df['court_score'] = np.r_[np.full(8, .1), np.full(8, .9), np.full(8, .3), np.full(8, .9), np.full(8, .1)]
+    assert len(detect_rallies(df, meta)) == 2                          # a real cutaway still splits
+
+
 def test_detect_rallies_uses_edge_court_score():
     df, meta = timeline(MATCH)
     df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5

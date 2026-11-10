@@ -158,6 +158,16 @@ Video (tải bằng yt-dlp về `video_thu_nghiem/`, không commit): ① https:/
 3. **Nảy theo đổi dấu vận tốc dọc chưa phân biệt được chạm sàn với cú vợt đánh bổng lên**, và nhạy với ngưỡng: ngưỡng 1 px/khung sinh nảy giả theo nhịp rung; ngưỡng 0,2 % chiều cao lọc sạch nhiễu nhưng cũng rụng một ứng viên bóng chết cuối pha (11,1 s, video ②) có vẻ hợp lý. → `dead_ball_candidate` dùng đúng như thiết kế: **gợi ý cho người xác nhận**, chưa đủ làm `rally_end` tự động; V4 vẫn mở phần phân biệt chạm vợt (cần vị trí cầu thủ) và so với đếm tay.
 4. **Bản nền tách pha hoạt động đúng thiết kế trên camera cố định** (video ②, một pha trọn vẹn — các cụm K-means cùng một camera đều được nhận là sân), nhưng **yếu với video quay tay rung** (video ①: khuôn biên trôi → 34 % khung đạt): video dọc tự quay nên dùng pipeline pickleball cục bộ hoặc cần ổn định hình trước.
 
+### 6.3 Vòng QC 10/11 trên video 11 phút: hai giả định bị phá, hai lần khắc phục, một hạn chế còn lại
+
+Stakeholder xem demo và nghi đoạn preview "bị cắt đứt giữa chừng pha". Điều tra (script `reports/qc/vi_du_dau_cuoi.py` + soi khung nguồn, ảnh `img/qc_cat_giua_pha.png`):
+
+1. **Chế độ mặc định (∧ khán giả im) cắt giữa pha — xác nhận.** Pha bị đóng tại 55,5 s; khung 62 s cho thấy vẫn đang đánh; điểm kết thúc thật (~70 s, đập tay). Nguyên nhân: video có **bình luận viên nói liên tục trong lúc đánh**. Khắc phục: thêm `use_audio=False` cho `detect_rallies` + test `test_without_audio_rallies_follow_the_court_camera_alone`.
+2. **Chế độ camera sân cũng cắt tại 57,5 s — truy tiếp bằng chuỗi `court_score`:** camera **zoom theo bóng giữa pha**, điểm khớp khuôn rơi 0,73–0,76, ngay dưới ngưỡng Otsu 0,78 suốt 60–72 s. Khắc phục: **hysteresis** (vào tại ngưỡng, duy trì tại 88% ngưỡng) + test `test_zoomed_court_shot_is_kept_by_hysteresis`; cứu được các đoạn zoom ổn định.
+3. **Còn lại:** khoảnh khắc *chuyển* zoom (mờ chuyển động, điểm rơi tới 0,62 trong ~4 s) vẫn tách đoạn — thuộc việc mở V5 (bám khuôn có bù tỷ lệ). Vì vậy trên video này đầu ra được mô tả đúng mức là **19 đoạn toàn sân liên tục / 8,8 phút (79%)** — KHÔNG claim "pha trọn vẹn" (so sánh: bật âm thanh 51 mảnh / 7,1 phút). Suite sau hai sửa: **41 test pass**.
+
+Bài học QC: con số pha/phút tự nó không chứng minh gì — **soi khung hình tại mốc cắt** là phép kiểm bắt buộc, và chính nó bắt được cả hai lỗi trên.
+
 ## 7. Sinh lại bản HTML
 
 ```bash

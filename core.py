@@ -186,8 +186,16 @@ def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3., 
         raise ValueError('Thiếu đặc trưng camera/âm thanh: hãy phân tích lại video.')
     step = 1/meta['sample_fps']; t = df.time.to_numpy(); duration = meta['duration']
     if 'court_score' in df and 'court_threshold' in meta:
-        # Court camera from edges: the frame matches a fixed court camera's edge template.
-        court = (df.court_score > meta['court_threshold']).to_numpy()
+        # Court camera from edges, with hysteresis: enter at the Otsu threshold, stay while
+        # the score keeps 88% of it. A camera that zooms in mid-rally still shows the court,
+        # but the tighter framing drops its template match just below the threshold; without
+        # hysteresis that live play is cut out of the rally (seen on a real broadcast where
+        # the zoomed stretch scored 0.73-0.76 against a 0.78 threshold).
+        score = df.court_score.to_numpy(); enter = meta['court_threshold']
+        court = np.zeros(len(df), bool); on = False
+        for k, s in enumerate(score):
+            on = s > (enter*.88 if on else enter)
+            court[k] = on
     else:
         # Analyses made before edge templates existed: fixed cameras = low log median motion.
         stats = df.groupby('camera').motion.agg(['median', 'size'])
