@@ -73,7 +73,7 @@ Notebook: mở `VideoLens.ipynb` trong VS Code/Jupyter, chọn interpreter `.ven
 
 ## Dữ liệu và giao thức
 
-**Dữ liệu của báo cáo nộp bài:** (1) trận pickleball phát sóng 67 phút, 854×480 — video do nhóm thu thập, **[CẦN BỔ SUNG URL + ngày truy cập trước khi nộp — hỏi người đã đo trận này]**; (2) hai video Shorts một-pha: `youtube.com/shorts/WQo-yvMozaI` và `youtube.com/shorts/eqp3tj8Y_Hg` (truy cập 09/11/2026), tải bằng yt-dlp vào `video_thu_nghiem/`; (3) video trận 11 phút cho ví dụ đầu-cuối: `youtube.com/watch?v=PMRSb3ogWq4` (truy cập 10/11/2026) — chạy `reports/qc/vi_du_dau_cuoi.py` ra 48 pha / highlight 6,6 phút.
+**Dữ liệu của báo cáo nộp bài:** (1) trận pickleball phát sóng 67 phút: `youtube.com/watch?v=pthJ1IQPqGE` (truy cập 10/11/2026; số đo gốc thực hiện trên bản 854×480; tái lập 10/11 trên bản 1080p sau hai bản vá ra 148 pha, trung vị 6,5 s — khớp 154 pha / 6,3 s của lần đo gốc); (2) hai video Shorts một-pha: `youtube.com/shorts/WQo-yvMozaI` và `youtube.com/shorts/eqp3tj8Y_Hg` (truy cập 09/11/2026), tải bằng yt-dlp vào `video_thu_nghiem/`; (3) video trận 11 phút cho ví dụ đầu-cuối: `youtube.com/watch?v=PMRSb3ogWq4` (truy cập 10/11/2026) — chạy `reports/qc/vi_du_dau_cuoi.py` ra 48 pha / highlight 6,6 phút.
 
 Ứng dụng nhận file video, không yêu cầu dữ liệu cài sẵn. Dùng video tự quay hoặc video CC có lưu URL, tác giả, loại giấy phép và ngày truy cập. TVSum: https://github.com/yalesong/tvsum — tham khảo cả script đánh giá chính thức trong `matlab/script_evaluate_result.m`. Nhãn gốc TVSum/SumMe cần được chuyển thành các khoảng thời gian theo đúng fps và giao thức lựa chọn của nhóm trước khi nạp JSON; dự án chưa có bộ chuyển đổi MAT/HDF5 tự động.
 

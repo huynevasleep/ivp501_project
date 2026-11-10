@@ -126,7 +126,7 @@ Mục 7 của báo cáo tách pha tự đặt luật *"Số liệu phải đo đ
 | # | Việc | Xong khi | Người nhận |
 |---|---|---|---|
 | Q1 | Script tái lập các con số/hình của báo cáo tách pha (đếm đổi camera trong pha, vẽ lại 7 hình từ `features.csv`) + ghi URL video, lệnh chạy | Chạy một lệnh ra lại đúng các số trong báo cáo, hoặc các số được hạ cấp thành "kiểm bằng mắt" | |
-| Q2 | Chạy lại trận 67 phút trên nhánh đã sửa 3.1, xác nhận số pha không đổi | Ghi số pha trước/sau vào báo cáo tách pha | |
+| Q2 | Chạy lại trận 67 phút trên nhánh đã sửa 3.1, xác nhận số pha không đổi | Ghi số pha trước/sau vào báo cáo tách pha | QC 10/11 ✅: tải lại trận (URL trong README), chạy bản 1080p sau cả hysteresis: **148 pha, core 1,9/6,5/18,8 s** so với gốc 154 pha, 1,5/6,3/18,5 s — tái lập được, lệch 4% |
 | Q3 | Thêm vào báo cáo một ví dụ lần vết **một pha cụ thể**: từ `features.csv` chỉ ra court_score và âm lượng từng mẫu so với hai ngưỡng Otsu, phép đệm → ra đúng `start`/`end` trong `report.json` | Có bảng/hình lần vết kèm lệnh chạy lại | |
 | Q4 | Rà soát bản thuyết trình: mọi chỗ nói "bóng chạm vợt/bóng chết quyết định timecode" phải đổi thành "bản nền gián tiếp + sự kiện người xác nhận" (mục 3.2 QC) | Không còn câu nào vượt quá bằng chứng | |
 
