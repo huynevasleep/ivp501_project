@@ -6,6 +6,8 @@
 
 ## Báo cáo trong `reports/` (đọc trước khi sửa phần highlight)
 
+**Video thử nghiệm chính** (trận phát sóng 67 phút, 854×480): US Open Pickleball Championships 2024, Men's Pro Gold — https://www.youtube.com/watch?v=pthJ1IQPqGE (tải 03/11/2026). Bộ video kiểm tra đủ bốn video ở mục 6b của báo cáo anhnhc.
+
 Người và agent làm tiếp phần highlight/ảnh vận động viên: đọc báo cáo trong `reports/` trước, rồi cập nhật nó khi đổi thuật toán hoặc có số đo mới. Mỗi báo cáo có mục **Việc mở**: ai làm được việc nào thì ghi tên nhận và làm, không cần chờ duyệt. Bản HTML sinh từ `.md` bằng `python reports/build_html.py` (cần `pip install markdown`).
 
 | Báo cáo | Tác giả | Nội dung | Tình trạng (08/11/2026) |
