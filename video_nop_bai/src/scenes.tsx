@@ -10,7 +10,7 @@ import {
   useVideoConfig,
 } from 'remotion';
 import {Card, Chip, COLORS, H1, Kicker, Scene, Stagger} from './ui';
-import {ALGOS, COURSE, DATE, DEMO_CAPTIONS, GOALS, HONEST, PIPELINE, REPO, RESULTS, TEAM, TITLE, TOPIC} from './data';
+import {ALGOS, COURSE, DATE, DEMO_CAPTIONS, END2END, GOALS, HONEST, PIPELINE, REPO, RESULTS, TEAM, TITLE, TOPIC} from './data';
 
 // ---------- 1. Tiêu đề ----------
 export const TitleScene: React.FC<{duration: number}> = ({duration}) => {
@@ -121,53 +121,121 @@ export const GoalsScene: React.FC<{duration: number}> = ({duration}) => (
   </Scene>
 );
 
-// ---------- 4. Pipeline ----------
+// ---------- 4. Pipeline: mỗi bước hiện đúng tấm ảnh của bước đó ----------
 export const PipelineScene: React.FC<{duration: number}> = ({duration}) => {
   const frame = useCurrentFrame();
-  const half = Math.round(duration / 2);
-  const image = frame < half ? 'img/cum_camera.jpg' : 'img/dong_thoi_gian.png';
-  const label =
-    frame < half
-      ? '12 cụm camera (K-means trên bố cục màu Lab 16×9)'
-      : 'Dòng thời gian: dải camera sân → pha tách được → pha được chọn';
+  const {fps} = useVideoConfig();
+  const from = 14;
+  const stepGap = Math.floor((duration - 120) / PIPELINE.length);
+  const active = Math.max(0, Math.min(PIPELINE.length - 1, Math.floor((frame - from) / stepGap)));
+  const pop = spring({frame: (frame - from) % stepGap, fps, config: {damping: 200}});
   return (
     <Scene duration={duration}>
-      <Kicker>Mục tiêu 1 + 2</Kicker>
-      <H1 size={56}>Từng bước chọn timecode highlight</H1>
-      <div style={{display: 'flex', gap: 50}}>
-        <div style={{flex: 1.15, display: 'flex', flexDirection: 'column', gap: 16}}>
+      <Kicker>Mục tiêu 1 + 2 · chạy trên video 11 phút ({END2END.url})</Kicker>
+      <H1 size={56}>Từng bước chọn timecode highlight — có ảnh từng bước</H1>
+      <div style={{display: 'flex', gap: 46}}>
+        <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: 14}}>
           <Stagger
             items={PIPELINE.map((p) => p.step)}
-            step={Math.floor((duration - 120) / PIPELINE.length)}
-            from={14}
+            step={stepGap}
+            from={from}
             render={(_, i, style) => (
-              <div style={{...style, display: 'flex', alignItems: 'center', gap: 20}}>
+              <div
+                style={{
+                  ...style,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 18,
+                  padding: '6px 12px',
+                  borderRadius: 14,
+                  background: i === active ? 'rgba(53,181,174,.16)' : 'transparent',
+                  border: `1.5px solid ${i === active ? COLORS.teal : 'transparent'}`,
+                }}
+              >
                 <div
                   style={{
-                    minWidth: 44,
-                    height: 44,
+                    minWidth: 42,
+                    height: 42,
                     borderRadius: '50%',
-                    background: COLORS.teal,
+                    background: i === active ? COLORS.accent : COLORS.teal,
                     color: '#07121f',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 800,
-                    fontSize: 25,
+                    fontSize: 24,
                   }}
                 >
                   {i + 1}
                 </div>
-                <div style={{fontSize: 27.5, flex: 1, lineHeight: 1.3}}>{PIPELINE[i].step}</div>
+                <div style={{fontSize: 26, flex: 1, lineHeight: 1.3}}>{PIPELINE[i].step}</div>
                 <Chip color={i % 2 ? COLORS.accent : COLORS.teal}>{PIPELINE[i].algo}</Chip>
               </div>
             )}
           />
         </div>
-        <Card style={{flex: 1, alignSelf: 'flex-start', padding: 20}}>
-          <Img src={staticFile(image)} style={{width: '100%', borderRadius: 12}} />
-          <div style={{fontSize: 24, color: COLORS.dim, marginTop: 16, textAlign: 'center'}}>{label}</div>
+        <Card style={{flex: 1, alignSelf: 'stretch', padding: 22, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+          <div key={active} style={{opacity: pop, transform: `scale(${0.96 + pop * 0.04})`, textAlign: 'center'}}>
+            <Img
+              src={staticFile(PIPELINE[active].img)}
+              style={{width: '100%', height: 540, objectFit: 'contain', borderRadius: 12, background: '#06101d'}}
+            />
+            <div style={{fontSize: 25, color: COLORS.text, marginTop: 18}}>
+              <span style={{color: COLORS.accent, fontWeight: 800}}>Bước {active + 1}: </span>
+              {PIPELINE[active].cap}
+            </div>
+          </div>
         </Card>
+      </div>
+    </Scene>
+  );
+};
+
+// ---------- 4b. Đầu-cuối: video 11 phút → highlight ----------
+export const EndToEndScene: React.FC<{duration: number}> = ({duration}) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const stat = (value: string, label: string, i: number) => {
+    const t = spring({frame: frame - 10 - i * 14, fps, config: {damping: 200}});
+    return (
+      <Card style={{flex: 1, textAlign: 'center', padding: '34px 20px', opacity: t, transform: `translateY(${(1 - t) * 30}px)`}}>
+        <div style={{fontSize: 66, fontWeight: 800, color: i === 2 ? COLORS.accent : COLORS.text}}>{value}</div>
+        <div style={{fontSize: 26, color: COLORS.dim, marginTop: 10}}>{label}</div>
+      </Card>
+    );
+  };
+  const arrow = (
+    <div style={{fontSize: 60, color: COLORS.teal, alignSelf: 'center', fontWeight: 800}}>→</div>
+  );
+  return (
+    <Scene duration={duration}>
+      <Kicker>Kết quả đầu-cuối · {END2END.url}</Kicker>
+      <H1 size={56}>Video {END2END.input} → còn {END2END.output} highlight</H1>
+      <div style={{display: 'flex', gap: 26, marginBottom: 34}}>
+        {stat(END2END.input, 'video trận đấu đầu vào', 0)}
+        {arrow}
+        {stat(END2END.rallies, 'pha bóng tách tự động', 1)}
+        {arrow}
+        {stat(END2END.output, `highlight trọn pha (${END2END.percent} thời lượng gốc)`, 2)}
+      </div>
+      <div style={{display: 'flex', gap: 44, alignItems: 'center'}}>
+        <Card style={{flex: 1.35, padding: 18}}>
+          <Img src={staticFile('steps/b6_dong_thoi_gian.png')} style={{width: '100%', borderRadius: 10}} />
+        </Card>
+        <div
+          style={{
+            flex: 1,
+            borderRadius: 22,
+            overflow: 'hidden',
+            border: `3px solid ${COLORS.border}`,
+            boxShadow: '0 24px 70px rgba(0,0,0,.5)',
+          }}
+        >
+          <OffthreadVideo muted src={staticFile('output_preview.mp4')} style={{width: '100%', display: 'block'}} />
+          <div style={{fontSize: 22, color: COLORS.dim, padding: '10px 16px', background: 'rgba(0,0,0,.35)'}}>
+            Trích đoạn video highlight đầu ra (ghép các pha trọn vẹn, giữ âm thanh gốc)
+          </div>
+        </div>
       </div>
     </Scene>
   );
@@ -194,7 +262,7 @@ export const DemoScene: React.FC<{duration: number; rawFrames: number}> = ({dura
           }}
         >
           {frame < rawFrames ? (
-            <OffthreadVideo muted src={staticFile('demo_raw.mp4')} style={{width: '100%', display: 'block'}} />
+            <OffthreadVideo muted src={staticFile('demo_overlay1.mp4')} style={{width: '100%', display: 'block'}} />
           ) : (
             <OffthreadVideo muted src={staticFile('demo_overlay.mp4')} style={{width: '100%', display: 'block'}} />
           )}
@@ -203,7 +271,7 @@ export const DemoScene: React.FC<{duration: number; rawFrames: number}> = ({dura
           {frame < rawFrames ? (
             <Card>
               <div style={{fontSize: 32, lineHeight: 1.45}}>
-                Hai video pickleball thật (YouTube Shorts) dùng làm dữ liệu thử — mỗi video một pha, camera cố định.
+                AI bám bóng chạy trực tiếp trên hai video thật (YouTube Shorts): vòng đỏ = ứng viên bóng đang bám, đường vàng = quỹ đạo vừa vẽ.
               </div>
             </Card>
           ) : (

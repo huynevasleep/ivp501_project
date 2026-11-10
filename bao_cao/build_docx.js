@@ -180,6 +180,7 @@ const thucNghiem = [
   H2('4.1. Dữ liệu và thiết lập'),
   bullet('Trận pickleball phát sóng 67 phút, 854×480, 29,97 fps — dữ liệu chính để đo pipeline tách pha (video do nhóm thu thập; link tải và ngày truy cập ghi trong README của repo).'),
   bullet('Hai video một-pha thực tế (YouTube Shorts, tải bằng yt-dlp, truy cập 09/11/2026): (1) youtube.com/shorts/WQo-yvMozaI — trong nhà, đánh đôi, 1080×1920, 24 fps, 14,3 s; (2) youtube.com/shorts/eqp3tj8Y_Hg — ngoài trời có mái, 720×1280, 30 fps, 12,4 s.'),
+  bullet('Video trận đấu công khai 11,0 phút cho ví dụ đầu-cuối: youtube.com/watch?v=PMRSb3ogWq4 (giải trong nhà, 1920×1080, 60 fps, truy cập 10/11/2026).'),
   bullet('Video tổng hợp trong bộ kiểm thử: sân vẽ vạch + người di chuyển; quả bóng chuyển động parabol nảy hai lần.'),
   P('Môi trường: Python 3.13+, OpenCV [11], scikit-learn, SciPy, FFmpeg (imageio-ffmpeg), CPU. Phân tích trận 67 phút (8.022 khung mẫu) mất 107 giây; xuất highlight 10% mất 14 giây. Mọi kết quả chạy lại bằng các lệnh ở Phụ lục B.'),
   H2('4.2. Tách pha trên trận 67 phút'),
@@ -201,9 +202,12 @@ const thucNghiem = [
   ...imgPair('img/overlay_bam_nham.jpg', 'img/overlay_bam_dung.jpg', 240, 427,
     'Video 2 trước/sau khi giới hạn ROI vùng sân. Trái: tracker khóa vào vật vàng tĩnh trên hàng rào (vòng đỏ, góc phải trên) dù “87% khung nối được”. Phải: bám đúng bóng, quỹ đạo (đường vàng) vẽ đường rơi tới điểm nảy thật.'),
   P('Ba kết luận đo được: (i) vẽ quỹ đạo hoạt động trên video thực tế; (ii) tỉ lệ khung nối được không phải độ chính xác — có phản ví dụ cụ thể ở Hình 9, nên mọi lần chạy phải kiểm overlay bằng mắt và giới hạn ROI; (iii) đổi dấu vận tốc dọc chưa phân biệt được bóng chạm sàn với cú vợt đánh bổng lên, nên ứng viên bóng chết chỉ dùng làm gợi ý cho người xác nhận, chưa làm mốc kết thúc pha tự động.'),
-  H2('4.4. Kiểm thử tự động, kiểm chứng và ablation'),
+  H2('4.4. Ví dụ đầu-cuối: video 11 phút → highlight 6,6 phút'),
+  P('Chạy trọn pipeline trên video trận đấu công khai 11,0 phút (mục 4.1, script reports/qc/vi_du_dau_cuoi.py): hệ thống tách được 48 pha và ghép highlight toàn bộ pha dài 6,6 phút — giữ 60% thời lượng gốc, cắt đi các khoảng nghỉ, cận mặt, chuyển cảnh giữa các điểm; bản ngân sách 25% chọn 14 pha điểm cao nhất, dài 2,7 phút. Khuôn biên của cụm camera sân có 7.477 điểm và 10 vạch Hough. Hình 10 là dòng thời gian toàn video: dải camera sân, âm lượng với ngưỡng Otsu, và 48 pha được tách (vàng). Cùng một lệnh sinh ra toàn bộ ảnh từng bước ở Hình 1–2 dạng trên video này và video summary.mp4 đầu ra.'),
+  ...img('img/e2e_dong_thoi_gian.png', 620, 229, 'Ví dụ đầu-cuối trên video 11 phút: dải xanh = camera sân; đường đen = âm lượng (vạch đứt: ngưỡng Otsu); vàng = 48 pha tách được, tổng 6,6 phút highlight.'),
+  H2('4.5. Kiểm thử tự động, kiểm chứng và ablation'),
   P('Toàn bộ 39 kiểm thử pass (pytest): tách pha trên dòng thời gian tổng hợp (pha đúng mốc, đệm không lùi quá đầu cảnh sân, chồng đệm cắt giữa khoảng nghỉ), nhận camera sân từ biên (cảnh quay tay và cảnh tĩnh không vạch bị loại; video một cụm vẫn giữ được camera sân — lỗi phát hiện trong quá trình QC, đã sửa kèm test hồi quy), bóng nảy/bóng chết trên video tổng hợp (hai lần nảy không chạm vợt → đúng một ứng viên bóng chết; chèn một cú đổi hướng ở giữa → không còn), Otsu tự cài khớp OpenCV trong 2 mức xám, xuất MP4 đúng từng pha, và metric ghép khoảng một-một. Về ablation: khối nhận camera sân từng dùng chuyển động quang học trung vị theo cụm, khi thay bằng khuôn biên kết quả gần như trùng (153 so với 154 pha) nhưng bỏ được phụ thuộc vào luồng quang; công cụ experiments.py so sánh sáu biến thể lựa chọn (uniform/motion/hybrid/no-diversity/no-motion/knapsack) cho phần phòng thí nghiệm.'),
-  H2('4.5. Sản phẩm demo'),
+  H2('4.6. Sản phẩm demo'),
   P('Ứng dụng Streamlit chạy cục bộ: tải video → toàn bộ pha đề xuất → xem video riêng từng pha → chỉnh mốc → xuất từng pha MP4 + ZIP + timecodes.csv; các công cụ kiểm tra bóng, xác nhận sự kiện, đánh giá F1 theo nhãn và ảnh vận động viên nằm cùng giao diện. Video demo nộp kèm được dựng bằng Remotion từ chính kết quả hệ thống.'),
 ];
 
