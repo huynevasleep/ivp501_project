@@ -128,24 +128,37 @@ def test_court_cameras_from_edges_alone():
         cv2.circle(img, (int(cx), int(cy)), int(rng.integers(20, 60)), 255, -1); frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(1)
     for _ in range(30):                                                                          # static but with no straight lines
         img = np.zeros((180, 320), np.uint8); cv2.circle(img, (160, 90), 50, 255, -1); frames.append(cv2.GaussianBlur(img, (9, 9), 0)); camera.append(2)
+    for _ in range(30):                                                                          # static banner: a straight step edge, no paint
+        img = np.full((180, 320), 40, np.uint8); img[:70] = 220; frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(3)
     edges = np.array([np.packbits(_edges(f)) for f in frames])
-    score, court_ids = court_cameras(edges, camera)
+    _, ids_without_paint_check, _, _ = court_cameras(edges, camera)
+    assert 3 in ids_without_paint_check                          # Hough alone takes the banner edge for a court line
+    score, court_ids, lines, debug = court_cameras(edges, camera, lambda k: frames[k])
     assert court_ids == [0]
     assert score[:30].min() > .8 and score[30:].max() < .3
+    assert len(lines[0]) >= 4                                   # the painted court lines, in pixels
+
+
+def test_painted_line_vs_banner_edge():
+    from core import is_painted_line
+    court = np.full((180, 320), 60, np.uint8); cv2.line(court, (20, 90), (300, 90), 230, 2)
+    banner = np.full((180, 320), 40, np.uint8); banner[:90] = 220
+    assert is_painted_line(court, (20, 89, 300, 89)) > .9          # segment on the border of the paint
+    assert is_painted_line(banner, (20, 90, 300, 90)) < .1
 
 
 def test_single_cluster_video_keeps_its_court_camera():
     from core import _edges, court_cameras
     rng = np.random.default_rng(0)
     edges = np.array([np.packbits(_edges(_court_frame(rng))) for _ in range(30)])
-    score, court_ids = court_cameras(edges, [0]*30)      # one fixed court camera, one cluster
+    score, court_ids, _, _ = court_cameras(edges, [0]*30)      # one fixed court camera, one cluster
     assert court_ids == [0]
     assert score.min() > .8
     blobs = []
     for _ in range(30):                                   # one static cluster with no straight lines
         img = np.zeros((180, 320), np.uint8); cv2.circle(img, (160, 90), 50, 255, -1)
         blobs.append(np.packbits(_edges(cv2.GaussianBlur(img, (9, 9), 0))))
-    _, court_ids = court_cameras(np.array(blobs), [0]*30)
+    _, court_ids, _, _ = court_cameras(np.array(blobs), [0]*30)
     assert court_ids == []
 
 
@@ -165,3 +178,55 @@ def test_detect_rallies_uses_edge_court_score():
     df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
     df['motion'] = 1.                                           # motion no longer decides
     assert [(r['core_start'], r['core_end']) for r in detect_rallies(df, meta)] == [(8., 20.), (27., 30.)]
+
+
+def test_decision_panel_data_follows_detect_rallies():
+    from decision_view import decision_data
+    df, meta = timeline(MATCH)
+    df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
+    meta['court_lines'] = {'0': [[20, 40, 300, 40]]}
+    chosen, _ = select(df, meta, ratio=1., mode='rally')
+    data = decision_data(df, meta, chosen)
+    assert [r['start'] for r in data['rallies']] == [c['start'] for c in chosen]
+    assert data['rallies'][1]['hl_start'] == chosen[0]['end']-chosen[0]['start']       # highlight clock
+    assert data['total'] == sum(c['end']-c['start'] for c in chosen)
+    inside = [s for s in data['samples'] if chosen[0]['core_start'] <= s['t'] < chosen[0]['core_end']]
+    assert inside and all(s['court'] and s['quiet'] for s in inside)                   # the core is court + quiet
+    assert all(s['r'] in (0, 1) for s in data['samples'])                               # only samples of kept rallies
+    assert data['court_lines'] == meta['court_lines']
+
+
+def test_hough_peak_matches_segment_rho_theta():
+    from core import hough_space, segment_rho_theta
+    for seg in ([20, 50, 300, 50], [100, 10, 100, 170], [40, 160, 200, 30]):
+        img = np.zeros((180, 320), np.uint8); cv2.line(img, tuple(seg[:2]), tuple(seg[2:]), 255, 1)
+        acc, rho_max = hough_space(img > 0)
+        r, t = np.unravel_index(np.argmax(acc), acc.shape)
+        rho, theta = segment_rho_theta(seg)
+        assert abs((r-rho_max)-rho) <= 1.5 and min(abs(t-theta), 180-abs(t-theta)) <= 1.5
+
+
+def test_court_debug_is_consistent_with_score():
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(1)
+    frames = [_court_frame(rng) for _ in range(20)]
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    score, ids, lines, debug = court_cameras(edges, [0]*20, lambda k: frames[k])
+    r, p = debug['recall'], debug['precision']
+    assert np.allclose(score, 2*r*p/(r+p))
+    assert set(debug['best']) == {0} and debug['templates'][0].shape == (180, 320)
+    assert len(debug['segments'][0]) >= len(lines[0])                 # every Hough segment, kept or not
+
+
+def test_short_diagonal_court_line_is_found():
+    """A far court camera's sideline runs ~55 px: shorter than 1/5 of the width, still a court line."""
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(2)
+    frames = []
+    for _ in range(20):
+        img = (rng.random((180, 320))*30+60).astype(np.uint8)
+        cv2.line(img, (100, 100), (120, 150), 255, 2)                 # ~54 px sideline, nothing longer
+        frames.append(cv2.GaussianBlur(img, (5, 5), 0))
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    _, ids, lines, _ = court_cameras(edges, [0]*20, lambda k: frames[k])
+    assert ids == [0] and lines[0]

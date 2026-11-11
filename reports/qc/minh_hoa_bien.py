@@ -91,7 +91,7 @@ def main(main_video, other_video):
     packed = np.array([np.packbits(e) for e in edge_maps])
     k = min(12, len(frames))
     camera = KMeans(n_clusters=k, random_state=42, n_init=10).fit_predict(np.array([layout(f) for f in frames]))
-    score, court_ids = court_cameras(packed, camera)
+    score, court_ids, _, _ = court_cameras(packed, camera)
     best = max(court_ids, key=lambda c: (camera == c).sum())           # cụm sân đông khung nhất
     members = np.flatnonzero(camera == best)
     template = np.mean([edge_maps[i] for i in members], axis=0) >= .5

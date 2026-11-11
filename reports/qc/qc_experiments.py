@@ -43,7 +43,7 @@ def main():
     # Mong muốn: ít nhất một cụm được nhận là camera sân (video quay tay một góc là ca dùng thật).
     frames = [court_frame(rng) for _ in range(120)]
     camera = [i % 12 for i in range(120)]
-    score, ids = court_cameras(pack(frames), camera)
+    score, ids, _, _ = court_cameras(pack(frames), camera)
     ok &= case('một camera sân, 12 cụm nhân tạo', len(ids) > 0,
                f'cụm sân nhận được: {ids}; điểm khung min={score.min():.2f}')
     if len(ids):
@@ -52,7 +52,7 @@ def main():
 
     # Ca 2: video một camera sân, K-means chỉ ra MỘT cụm (nhãn đồng nhất).
     # log_match một giá trị → Otsu trả về chính nó → so sánh "strictly greater" loại mọi cụm?
-    score, ids = court_cameras(pack(frames), [0]*120)
+    score, ids, _, _ = court_cameras(pack(frames), [0]*120)
     ok &= case('một camera sân, một cụm duy nhất', len(ids) > 0,
                f'cụm sân nhận được: {ids} (rỗng nghĩa là 0 pha trên video một góc máy)')
 
@@ -63,7 +63,7 @@ def main():
         cx, cy = rng.integers(60, 260), rng.integers(40, 140)
         cv2.circle(img, (int(cx), int(cy)), int(rng.integers(20, 60)), 255, -1)
         moving.append(cv2.GaussianBlur(img, (5, 5), 0))
-    score, ids = court_cameras(pack(moving), [i % 4 for i in range(60)])
+    score, ids, _, _ = court_cameras(pack(moving), [i % 4 for i in range(60)])
     ok &= case('toàn cảnh quay tay, không có sân', len(ids) == 0,
                f'cụm sân nhận được: {ids} (phải rỗng)')
 

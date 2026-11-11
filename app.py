@@ -46,6 +46,9 @@ if run:
         if mode=='rally':
             bar.progress(1.,text='Đang chọn ảnh cầu thủ lúc vung vợt…')
             (out/'shots.json').write_text(json.dumps(best_shots(source,segments,out),ensure_ascii=False,indent=2),encoding='utf-8')
+            from ball_path import rally_ball_paths
+            bar.progress(0.,text='Đang bám đường bóng trên các cảnh camera sân…')
+            rally_ball_paths(source,df,meta,segments,out,lambda x:bar.progress(min(1.,x),text='Đang bám đường bóng trên các cảnh camera sân…'))
         report={'input_name':upload.name,'metadata':meta,'settings':dict(ratio=ratio,mode=mode,diversity=diversity,optimizer=optimizer),'segments':segments}
         (out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         st.session_state.result=(out,df,meta,segments,scores,video)
@@ -78,7 +81,12 @@ else:
             else: st.error('Không tìm thấy video nguồn để tách theo mốc đã lưu.')
         if f'split_{out.name}' in st.session_state:
             show_individual(st.session_state[f'split_{out.name}'],f'generic_{out.name}')
-        st.video(str(video))
+        if segments and 'core_start' in segments[0]:
+            # Rally mode: player + collapsible panel with the evidence used at each moment.
+            from decision_view import render as render_decisions
+            render_decisions(video, df, meta, segments, out)
+        else:
+            st.video(str(video))
         st.download_button('Tải highlight MP4',video.read_bytes(),'highlight.mp4','video/mp4')
         shots=json.loads((out/'shots.json').read_text(encoding='utf-8')) if (out/'shots.json').exists() else []
         if shots:

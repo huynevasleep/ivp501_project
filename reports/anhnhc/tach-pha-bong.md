@@ -1,8 +1,10 @@
 # Highlight pha bóng: thuật toán, các bước xử lý và tình trạng theo mục tiêu
 
-*anhnhc · cập nhật 09/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
+*anhnhc · cập nhật 10/11/2026 · nhánh `rally-highlight` · code ở `core.py`*
 
 **Bổ sung sau merge local:** xem [đối chiếu ba mục tiêu](../project-audit.md) về công cụ quỹ đạo ứng viên, sự kiện xác nhận, ghép toàn bộ pha và xử lý ảnh. Các số liệu trong báo cáo này vẫn là kết quả của nhánh tác giả; công cụ mới chưa được đo trên trận có nhãn nên không thay thế các kết luận dưới đây.
+
+**Video thử nghiệm chính:** US Open Pickleball Championships 2024, Men's Pro Gold, https://www.youtube.com/watch?v=pthJ1IQPqGE (854×480, 29,97 fps, 66:55; tải 03/11/2026). Mọi số đo trong ghi chú này là trên video đó, trừ khi ghi khác.
 
 Ghi chú này bám theo 3 mục tiêu của đề tài. Với mỗi mục tiêu, nó ghi rõ đã làm gì, bằng thuật toán nào, đo được gì, và còn thiếu gì. Mọi con số đo trên một trận pickleball 67 phút (854×480, 29,97 fps) bằng code hiện tại của nhánh.
 
@@ -63,6 +65,12 @@ Pha bóng = **camera sân đang lên hình VÀ khán giả đang im**. Hai ngư�
    - **Mỗi khung** được chấm bằng độ khớp cao nhất với các khuôn camera sân; khung sân là khung vượt ngưỡng Otsu của điểm này. Nhờ vậy khung sân lỡ rơi vào cụm khác vẫn được nhận.
 
    Trên trận thử: 3 cụm sân khớp khuôn của chính mình 0,89–0,92, khuôn có 7 500–7 800 điểm biên và 5–14 đường Hough; 9 cụm còn lại khớp ≤ 0,13, khuôn gần như trống. Khung sân có điểm 0,88 (p10) – 0,92 (trung vị); khung khác trung vị 0,42, p99 0,61; ngưỡng Otsu 0,66. Kết quả 37,5 phút camera sân. Trong đó **cụm 1 là góc ngang** (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.
+
+   **Chỉ giữ vạch sơn** (`is_painted_line`, sửa 10/11 sau khi QC chỉ ra các vạch Hough "trên trời"). Hough bắt mọi cạnh thẳng: mép băng rôn, mép bảng quảng cáo, dải băng trên lưới. Canny đánh dấu hai mép của một vạch sơn, nên đoạn Hough nằm trên mép vạch. Tại các điểm dọc đoạn, điểm sáng nhất trong ±2 pixel phải sáng hơn cả hai điểm cách 5 pixel về hai phía, tức có một vạch sáng mảnh chạy dọc. Mép băng rôn là một bậc sáng–tối nên không qua. Kiểm trên ảnh trung vị của cụm (người và bóng mờ đi). Camera sân phải có ít nhất một vạch sơn; tọa độ vạch được lưu trong `metadata.json` (`court_lines`, đơn vị pixel 320×180).
+
+   ![Vạch Hough được giữ (xanh) và bị loại (đỏ) trên khuôn của từng camera sân](img/vach_san_hough.jpg)
+
+   *Trên trận thử: giữ 5/5, 12/14, 8/11 đoạn cho 3 camera sân; các đoạn bị loại là mép bảng quảng cáo, dải băng trên lưới, mép khung hình. Cảnh đồ họa "Match summary" không còn qua cổng camera sân.*
 
    Hai cách đã thử và bỏ: đếm vạch trắng thẳng bằng HoughLinesP (nhận nhầm áo trắng, băng rôn, chữ; sót camera góc ngang vì vạch quá mảnh ở 320×180), và diện tích, độ đầy của mặt sân xanh (áo, băng rôn xanh lẫn vào). Bản trước dùng chuyển động optical flow trung vị của cụm (hình dưới); kết quả gần như trùng (153 so với 154 pha) nhưng nay không còn cần optical flow để nhận sân.
 
@@ -125,6 +133,12 @@ Các bước đề xuất, đều là kỹ thuật trong môn học:
    - *Kết thúc:* theo định nghĩa mục 3.1.
 8. **Timecode pha** = từ cú giao bóng tới sự kiện kết thúc, mỗi bên cộng một khoảng đệm.
 
+**Đã thử bộ bám bóng hiện có (`rally_evidence.track_ball`, của Huy; nhánh QC thêm sự kiện bóng nảy) — 10/11:**
+
+- Video Shorts quay tay trong nhà (youtube.com/shorts/WQo-yvMozaI): 100% điểm bám suốt 14 giây nằm trên băng rôn, quả bóng thật không lần nào được bám. Máy quay lia và zoom nên băng rôn trượt trên hình và qua được bước trừ ảnh; hình vàng trên băng rôn lớn hơn bóng nên được chọn khi bám lại. Video Shorts ngoài trời (eqp3tj8Y_Hg): chỉ 3% điểm ở vùng trên.
+- Hai cách sửa đã thử và **không giữ** vì không tốt hơn: (1) loại vật đứng yên bằng ảnh nền trung vị của đoạn — vô dụng khi máy quay di chuyển (Shorts vẫn 100% trên băng rôn); (2) chỉ tìm trong hộp bao vạch sân — trên trận US Open bỏ được nhiều điểm trên khán đài nhưng vẫn dính mũ vàng của trọng tài (đứng trước sân ở camera góc ngang) và giày neon, camera góc ngang kém hơn cách cũ (kiểm bằng mắt 8 điểm mỗi pha).
+- Kết luận: phân biệt bóng với mũ trọng tài, giày, khán đài cần thêm kích thước bóng theo khoảng cách, quỹ đạo nhiều khung, hoặc mô hình học sâu. Việc V3 vẫn mở.
+
 Rủi ro đã biết: bóng chỉ vài pixel và bị nhòe khi bay nhanh; bị lưới, người che; góc dọc sân khó thấy độ cao bóng. Cần thử trên vài pha trước khi kết luận cách này làm được.
 
 **Cập nhật QC 09/11:** công cụ quỹ đạo (`rally_evidence.track_ball`) nay tự đề xuất thêm **ứng viên bóng nảy** (vận tốc dọc đổi dấu rơi→bật, ngưỡng 0,2 % chiều cao khung) và **ứng viên bóng chết** (nảy lần hai trong ≤ 2,5 s không có ứng viên đổi hướng ở giữa — luật hai lần nảy), tất cả `confirmed=false` cho bảng xác nhận. Đã chứng minh trên video tổng hợp (2 test trong `tests/test_evidence.py`) và thử trên **hai video Shorts thật**: quỹ đạo vẽ đúng điểm nảy thật khi giới hạn ROI vùng sân, nhưng bám nhầm vật vàng tĩnh khi không có ROI, và đổi dấu vận tốc chưa phân biệt được chạm sàn với cú vợt đánh bổng — chi tiết, số đo và lệnh chạy lại ở [báo cáo QC mục 6](../qc/qc-rally-highlights.md). Bước 7 (sự kiện) của kế hoạch trên vì vậy đã có bản nháp chạy được; **V3/V4 còn lại phần so với đếm tay và phân biệt chạm vợt bằng vị trí cầu thủ**.
@@ -175,6 +189,19 @@ Giới hạn: video gốc 480p nên ảnh đăng Facebook bị giới hạn đ�
 ```
 
 Chọn loại video "Thể thao có pha bóng". Test của phần này ở `tests/test_rally.py` (11 test, dữ liệu tổng hợp).
+
+## 6b. Bộ video kiểm tra
+
+Mọi thay đổi thuật toán chạy lại trên cả bốn video và báo số theo từng video, không chỉnh trên một video rồi tin (tránh khớp riêng một trận):
+
+| Video | Loại | Ghi chú |
+|---|---|---|
+| US Open 2024 Men's Pro Gold (pthJ1IQPqGE), 67 phút, 480p | Phát sóng, 3 camera sân cố định, có cận mặt, khán giả | Video chính |
+| PMRSb3ogWq4, 11 phút, 1080p | Một góc máy cố định, trong nhà | Code nhận đúng camera sân, 48 pha, highlight 6,5 phút; mép băng rôn trên cao bị Hough bắt trước khi có lọc vạch sơn |
+| Shorts WQo-yvMozaI, 14 s, dọc | Điện thoại, máy quay di chuyển, một pha | Bộ bám bóng bám băng rôn 100% |
+| Shorts eqp3tj8Y_Hg, 12 s, dọc | Điện thoại, ngoài trời, một pha | Bộ bám bóng ổn hơn (3% điểm ở vùng trên) |
+
+Video tải bằng yt-dlp, không commit.
 
 ## 7. Việc mở: ai làm được thì nhận
 

@@ -45,7 +45,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <main>
 <!-- Sinh từ tach-pha-bong.md bằng reports/build_html.py; sửa file .md rồi chạy lại, đừng sửa tay file này. -->
 <h1 id="highlight-pha-bong-thuat-toan-cac-buoc-xu-ly-va-tinh-trang-theo-muc-tieu">Highlight pha bóng: thuật toán, các bước xử lý và tình trạng theo mục tiêu</h1>
-<p><em>anhnhc · cập nhật 09/11/2026 · nhánh <code>rally-highlight</code> · code ở <code>core.py</code></em></p>
+<p><em>anhnhc · cập nhật 10/11/2026 · nhánh <code>rally-highlight</code> · code ở <code>core.py</code></em></p>
 <nav><strong>Mục lục</strong><ol>
 <li><a href="#1-muc-tieu-e-tai">1. Mục tiêu đề tài</a></li>
 <li><a href="#2-tinh-trang">2. Tình trạng</a></li>
@@ -62,11 +62,13 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 </ul>
 </li>
 <li><a href="#6-chay-lai">6. Chạy lại</a></li>
+<li><a href="#6b-bo-video-kiem-tra">6b. Bộ video kiểm tra</a></li>
 <li><a href="#7-viec-mo-ai-lam-uoc-thi-nhan">7. Việc mở: ai làm được thì nhận</a></li>
 <li><a href="#8-sinh-lai-ban-html">8. Sinh lại bản HTML</a></li>
 </ol></nav>
 
 <p><strong>Bổ sung sau merge local:</strong> xem <a href="../project-audit.md">đối chiếu ba mục tiêu</a> về công cụ quỹ đạo ứng viên, sự kiện xác nhận, ghép toàn bộ pha và xử lý ảnh. Các số liệu trong báo cáo này vẫn là kết quả của nhánh tác giả; công cụ mới chưa được đo trên trận có nhãn nên không thay thế các kết luận dưới đây.</p>
+<p><strong>Video thử nghiệm chính:</strong> US Open Pickleball Championships 2024, Men's Pro Gold, https://www.youtube.com/watch?v=pthJ1IQPqGE (854×480, 29,97 fps, 66:55; tải 03/11/2026). Mọi số đo trong ghi chú này là trên video đó, trừ khi ghi khác.</p>
 <p>Ghi chú này bám theo 3 mục tiêu của đề tài. Với mỗi mục tiêu, nó ghi rõ đã làm gì, bằng thuật toán nào, đo được gì, và còn thiếu gì. Mọi con số đo trên một trận pickleball 67 phút (854×480, 29,97 fps) bằng code hiện tại của nhánh.</p>
 <p><strong>Ai trong nhóm (người hay agent) thấy làm được việc nào ở mục 7 "Việc mở" thì nhận và làm</strong>, không cần chờ ai duyệt trước.</p>
 <h2 id="1-muc-tieu-e-tai">1. Mục tiêu đề tài</h2>
@@ -136,6 +138,9 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
    - <strong>Mỗi khung</strong> được chấm bằng độ khớp cao nhất với các khuôn camera sân; khung sân là khung vượt ngưỡng Otsu của điểm này. Nhờ vậy khung sân lỡ rơi vào cụm khác vẫn được nhận.</li>
 </ol>
 <p>Trên trận thử: 3 cụm sân khớp khuôn của chính mình 0,89–0,92, khuôn có 7 500–7 800 điểm biên và 5–14 đường Hough; 9 cụm còn lại khớp ≤ 0,13, khuôn gần như trống. Khung sân có điểm 0,88 (p10) – 0,92 (trung vị); khung khác trung vị 0,42, p99 0,61; ngưỡng Otsu 0,66. Kết quả 37,5 phút camera sân. Trong đó <strong>cụm 1 là góc ngang</strong> (quay từ bên hông, lưới dựng giữa hình), cụm 2 và 5 quay dọc sân từ sau đường biên cuối.</p>
+<p><strong>Chỉ giữ vạch sơn</strong> (<code>is_painted_line</code>, sửa 10/11 sau khi QC chỉ ra các vạch Hough "trên trời"). Hough bắt mọi cạnh thẳng: mép băng rôn, mép bảng quảng cáo, dải băng trên lưới. Canny đánh dấu hai mép của một vạch sơn, nên đoạn Hough nằm trên mép vạch. Tại các điểm dọc đoạn, điểm sáng nhất trong ±2 pixel phải sáng hơn cả hai điểm cách 5 pixel về hai phía, tức có một vạch sáng mảnh chạy dọc. Mép băng rôn là một bậc sáng–tối nên không qua. Kiểm trên ảnh trung vị của cụm (người và bóng mờ đi). Camera sân phải có ít nhất một vạch sơn; tọa độ vạch được lưu trong <code>metadata.json</code> (<code>court_lines</code>, đơn vị pixel 320×180).</p>
+<p><img alt="Vạch Hough được giữ (xanh) và bị loại (đỏ) trên khuôn của từng camera sân" src="img/vach_san_hough.jpg" loading="lazy"></p>
+<p><em>Trên trận thử: giữ 5/5, 12/14, 8/11 đoạn cho 3 camera sân; các đoạn bị loại là mép bảng quảng cáo, dải băng trên lưới, mép khung hình. Cảnh đồ họa "Match summary" không còn qua cổng camera sân.</em></p>
 <p>Hai cách đã thử và bỏ: đếm vạch trắng thẳng bằng HoughLinesP (nhận nhầm áo trắng, băng rôn, chữ; sót camera góc ngang vì vạch quá mảnh ở 320×180), và diện tích, độ đầy của mặt sân xanh (áo, băng rôn xanh lẫn vào). Bản trước dùng chuyển động optical flow trung vị của cụm (hình dưới); kết quả gần như trùng (153 so với 154 pha) nhưng nay không còn cần optical flow để nhận sân.</p>
 <p><img alt="Chuyển động trung vị theo cụm" src="img/chuyen_dong_cum.png" loading="lazy"></p>
 <ol start="6">
@@ -216,6 +221,12 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
    - <em>Kết thúc:</em> theo định nghĩa mục 3.1.</li>
 <li><strong>Timecode pha</strong> = từ cú giao bóng tới sự kiện kết thúc, mỗi bên cộng một khoảng đệm.</li>
 </ol>
+<p><strong>Đã thử bộ bám bóng hiện có (<code>rally_evidence.track_ball</code>, của Huy; nhánh QC thêm sự kiện bóng nảy) — 10/11:</strong></p>
+<ul>
+<li>Video Shorts quay tay trong nhà (youtube.com/shorts/WQo-yvMozaI): 100% điểm bám suốt 14 giây nằm trên băng rôn, quả bóng thật không lần nào được bám. Máy quay lia và zoom nên băng rôn trượt trên hình và qua được bước trừ ảnh; hình vàng trên băng rôn lớn hơn bóng nên được chọn khi bám lại. Video Shorts ngoài trời (eqp3tj8Y_Hg): chỉ 3% điểm ở vùng trên.</li>
+<li>Hai cách sửa đã thử và <strong>không giữ</strong> vì không tốt hơn: (1) loại vật đứng yên bằng ảnh nền trung vị của đoạn — vô dụng khi máy quay di chuyển (Shorts vẫn 100% trên băng rôn); (2) chỉ tìm trong hộp bao vạch sân — trên trận US Open bỏ được nhiều điểm trên khán đài nhưng vẫn dính mũ vàng của trọng tài (đứng trước sân ở camera góc ngang) và giày neon, camera góc ngang kém hơn cách cũ (kiểm bằng mắt 8 điểm mỗi pha).</li>
+<li>Kết luận: phân biệt bóng với mũ trọng tài, giày, khán đài cần thêm kích thước bóng theo khoảng cách, quỹ đạo nhiều khung, hoặc mô hình học sâu. Việc V3 vẫn mở.</li>
+</ul>
 <p>Rủi ro đã biết: bóng chỉ vài pixel và bị nhòe khi bay nhanh; bị lưới, người che; góc dọc sân khó thấy độ cao bóng. Cần thử trên vài pha trước khi kết luận cách này làm được.</p>
 <p><strong>Cập nhật QC 09/11:</strong> công cụ quỹ đạo (<code>rally_evidence.track_ball</code>) nay tự đề xuất thêm <strong>ứng viên bóng nảy</strong> (vận tốc dọc đổi dấu rơi→bật, ngưỡng 0,2 % chiều cao khung) và <strong>ứng viên bóng chết</strong> (nảy lần hai trong ≤ 2,5 s không có ứng viên đổi hướng ở giữa — luật hai lần nảy), tất cả <code>confirmed=false</code> cho bảng xác nhận. Đã chứng minh trên video tổng hợp (2 test trong <code>tests/test_evidence.py</code>) và thử trên <strong>hai video Shorts thật</strong>: quỹ đạo vẽ đúng điểm nảy thật khi giới hạn ROI vùng sân, nhưng bám nhầm vật vàng tĩnh khi không có ROI, và đổi dấu vận tốc chưa phân biệt được chạm sàn với cú vợt đánh bổng — chi tiết, số đo và lệnh chạy lại ở <a href="../qc/qc-rally-highlights.md">báo cáo QC mục 6</a>. Bước 7 (sự kiện) của kế hoạch trên vì vậy đã có bản nháp chạy được; <strong>V3/V4 còn lại phần so với đếm tay và phân biệt chạm vợt bằng vị trí cầu thủ</strong>.</p>
 <h2 id="4-muc-tieu-2-ghep-cac-pha-thanh-highlight">4. Mục tiêu 2: ghép các pha thành highlight</h2>
@@ -277,6 +288,40 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <pre><code class="language-bash">.venv/bin/python -m streamlit run app.py --server.address 127.0.0.1
 </code></pre>
 <p>Chọn loại video "Thể thao có pha bóng". Test của phần này ở <code>tests/test_rally.py</code> (11 test, dữ liệu tổng hợp).</p>
+<h2 id="6b-bo-video-kiem-tra">6b. Bộ video kiểm tra</h2>
+<p>Mọi thay đổi thuật toán chạy lại trên cả bốn video và báo số theo từng video, không chỉnh trên một video rồi tin (tránh khớp riêng một trận):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Video</th>
+<th>Loại</th>
+<th>Ghi chú</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US Open 2024 Men's Pro Gold (pthJ1IQPqGE), 67 phút, 480p</td>
+<td>Phát sóng, 3 camera sân cố định, có cận mặt, khán giả</td>
+<td>Video chính</td>
+</tr>
+<tr>
+<td>PMRSb3ogWq4, 11 phút, 1080p</td>
+<td>Một góc máy cố định, trong nhà</td>
+<td>Code nhận đúng camera sân, 48 pha, highlight 6,5 phút; mép băng rôn trên cao bị Hough bắt trước khi có lọc vạch sơn</td>
+</tr>
+<tr>
+<td>Shorts WQo-yvMozaI, 14 s, dọc</td>
+<td>Điện thoại, máy quay di chuyển, một pha</td>
+<td>Bộ bám bóng bám băng rôn 100%</td>
+</tr>
+<tr>
+<td>Shorts eqp3tj8Y_Hg, 12 s, dọc</td>
+<td>Điện thoại, ngoài trời, một pha</td>
+<td>Bộ bám bóng ổn hơn (3% điểm ở vùng trên)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Video tải bằng yt-dlp, không commit.</p>
 <h2 id="7-viec-mo-ai-lam-uoc-thi-nhan">7. Việc mở: ai làm được thì nhận</h2>
 <p>Cách nhận: ghi tên mình và ngày vào cột "Người nhận" trong bảng này, commit lên nhánh rồi làm. Xong thì ghi kết quả vào mục báo cáo tương ứng, cập nhật bảng mục 2 và bảng "Báo cáo trong <code>reports/</code>" ở đầu <code>README.md</code>, rồi sinh lại HTML (mục 8). Số liệu phải đo được và kèm lệnh hoặc script để chạy lại; kiểm bằng mắt thì ghi rõ là kiểm bằng mắt.</p>
 <div class="tbl"><table>
