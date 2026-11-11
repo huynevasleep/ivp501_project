@@ -235,7 +235,10 @@ def analyze(path, out, sample_fps=2., sensitivity=3., progress=None):
         view = np.log1p(acc.astype(np.float64)); view = (255*view/max(view.max(), 1e-9)).astype(np.uint8)
         cv2.imwrite(str(out/f'court_template_{c}.png'), template.astype(np.uint8)*255)
         cv2.imwrite(str(out/f'court_hough_{c}.png'), view)
-        debug_meta[str(c)] = dict(template=f'court_template_{c}.png', hough=f'court_hough_{c}.png', rho_max=rho_max,
+        idx = np.flatnonzero(df.camera.to_numpy() == c)                # median frame: players and ball fade out
+        picks = idx[np.linspace(0, len(idx)-1, min(25, len(idx))).astype(int)]
+        cv2.imwrite(str(out/f'court_median_{c}.png'), np.median([gray_of(k) for k in picks], axis=0).astype(np.uint8))
+        debug_meta[str(c)] = dict(template=f'court_template_{c}.png', hough=f'court_hough_{c}.png', median=f'court_median_{c}.png', rho_max=rho_max,
                                   rho_bins=int(acc.shape[0]), theta_bins=int(acc.shape[1]),
                                   segments=[dict(seg=seg, painted=round(float(f), 2), kept=bool(f >= .5),
                                                  rho_theta=segment_rho_theta(seg)) for seg, f in court_debug['segments'][c]])

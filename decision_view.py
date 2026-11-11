@@ -4,7 +4,8 @@ The panel follows the playing highlight: it maps the highlight time back to the 
 takes the nearest analysed sample (2 per second) and shows the evidence detect_rallies used
 there - court camera (edge-template match vs Otsu threshold, with the camera's painted court
 lines drawn on the current frame), crowd loudness vs its Otsu threshold, and whether the moment
-is the pre-roll, the rally core or the post-roll of the kept rally.
+is the pre-roll, the rally core or the post-roll of the kept rally. When ball_path ran, the ball
+flight is drawn over the playing video with its bounce / hit candidates (experimental, not used to cut).
 """
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ import streamlit.components.v1 as components
 from core import court_mask, quiet_mask
 
 
-def decision_data(df, meta, segments):
+def decision_data(df, meta, segments, ball=None):
     """Everything the panel shows, from the same rules detect_rallies applies."""
     court = court_mask(df, meta); quiet, loud_cut = quiet_mask(df)
     t = df.time.to_numpy(); has_score = 'court_score' in df
@@ -40,7 +41,7 @@ def decision_data(df, meta, segments):
         hist = dict(counts=counts.tolist(), lo=0., hi=1.)
     return dict(rallies=rallies, samples=samples, court_threshold=meta.get('court_threshold'),
                 loud_threshold=loud_cut, court_lines=meta.get('court_lines', {}), total=offset,
-                court_debug=meta.get('court_debug', {}), score_hist=hist)
+                court_debug=meta.get('court_debug', {}), score_hist=hist, ball=ball)
 
 
 def render(video, df, meta, segments, out, height=560):
@@ -53,7 +54,9 @@ def render(video, df, meta, segments, out, height=560):
     from streamlit import runtime
     media = runtime.get_instance().media_file_mgr
     url = media.add(str(video), 'video/mp4', f'decision_view:{video}')
-    data = decision_data(df, meta, segments)
+    ball_file = Path(out)/'ball_paths.json'
+    ball = json.loads(ball_file.read_text(encoding='utf-8')) if ball_file.exists() else None
+    data = decision_data(df, meta, segments, ball)
     add = lambda name, kind: media.add(str(Path(out)/name), kind, f'decision_view:{out}:{name}')
     for s in data['samples']:
         s['img'] = add(s['img'], 'image/jpeg')
@@ -70,7 +73,8 @@ _HTML = r'''<!doctype html><html><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 #wrap{display:flex;gap:10px;height:100vh;padding:4px}
 #left{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-video{width:100%;max-height:calc(100vh - 60px);background:#000;border-radius:8px}
+#vw{position:relative}video{width:100%;max-height:calc(100vh - 60px);background:#000;border-radius:8px;display:block}
+#ov{position:absolute;left:0;top:0;pointer-events:none}#ballbtn.on{border-color:var(--warn);color:var(--warn)}
 #bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit}
 button:hover{border-color:var(--accent)}
@@ -79,7 +83,7 @@ button:hover{border-color:var(--accent)}
 #panel.debug{width:620px}
 #dbg{display:none}#panel.debug #dbg{display:block}#panel.debug #normalcap{display:none}
 .cols{display:flex;gap:8px}.cols>.main{flex:1;min-width:0}.cols>.side{width:0;overflow:hidden}#panel.debug .cols>.side{width:210px;flex:none;overflow:visible}
-.tabs{display:flex;gap:4px;margin:4px 0}.tabs button{padding:2px 8px;font-size:12px}.tabs button.on{border-color:var(--accent);color:var(--accent)}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.tabs button{padding:2px 7px;font-size:12px;white-space:nowrap}.tabs button.on{border-color:var(--accent);color:var(--accent)}
 .kv{font-size:12px;color:var(--muted);margin-top:4px}.kv b{color:var(--fg);font-weight:600}
 
 #panel.min .body{display:none}
@@ -98,13 +102,13 @@ canvas{width:100%;border-radius:6px;display:block}
 .muted{color:var(--muted)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
 .legend span{margin-right:8px}.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:middle}
 </style></head><body><div id="wrap">
-<div id="left"><video id="v" src="__URL__" controls preload="metadata"></video>
-<div id="bar"><button id="prev">◀ Pha trước</button><button id="next">Pha sau ▶</button><span id="pos" class="muted"></span></div></div>
+<div id="left"><div id="vw"><video id="v" src="__URL__" controls preload="metadata"></video><canvas id="ov"></canvas></div>
+<div id="bar"><button id="prev">◀ Pha trước</button><button id="next">Pha sau ▶</button><button id="ballbtn" class="on" title="Vẽ đường bay và các dấu nảy / chạm vợt lên video">Đường bóng</button><span id="pos" class="muted"></span></div></div>
 <aside id="panel"><div class="head"><span class="title">Code đang quyết định gì?</span><span><button id="dbgbtn" title="Ảnh xám / nhị phân và Hough mà code dùng">Debug</button> <button id="tog" title="Thu gọn / mở rộng">⟨⟩</button></span></div>
 <div class="body">
 <div class="row"><span id="rally" class="title"></span> <span id="phase" class="chip"></span><div id="src" class="muted"></div></div>
 <div class="cols"><div class="main">
-<div id="dbg"><div class="tabs"><button data-v="gray" class="on">Xám</button><button data-v="canny">Canny (nhị phân)</button><button data-v="match">Khớp khuôn (nhị phân)</button></div></div>
+<div id="dbg"><div class="tabs"><button data-v="gray" class="on">Xám</button><button data-v="canny">Canny (nhị phân)</button><button data-v="match">Khớp khuôn (nhị phân)</button><button data-v="ball">Đường bóng</button></div></div>
 <canvas id="kf" width="320" height="180"></canvas>
 <div class="muted" id="kfcap" style="font-size:12px;margin-top:3px"></div>
 <div id="dbgcap" class="kv"></div>
@@ -112,7 +116,8 @@ canvas{width:100%;border-radius:6px;display:block}
 <div class="row"><div class="lbl"><span>Camera sân (khớp khuôn biên)</span><span id="cs"></span></div><div class="meter"><div class="fill" id="csf"></div><div class="tick" id="cst"></div></div></div>
 <div class="row"><div class="lbl"><span>Âm lượng khán giả</span><span id="ld"></span></div><div class="meter"><div class="fill" id="ldf"></div><div class="tick" id="ldt"></div></div></div>
 <div class="row"><div class="lbl"><span>Pha hiện tại theo thời gian (bấm để tua)</span></div><canvas id="strip" width="360" height="46"></canvas>
-<div class="legend muted" style="font-size:11px;margin-top:3px"><span><i class="dot" style="background:var(--ok)"></i>sân + im</span><span><i class="dot" style="background:var(--warn)"></i>sân, ồn</span><span><i class="dot" style="background:var(--bad)"></i>không phải sân</span></div></div>
+<div class="legend muted" style="font-size:11px;margin-top:3px"><span><i class="dot" style="background:var(--ok)"></i>sân + im</span><span><i class="dot" style="background:var(--warn)"></i>sân, ồn</span><span><i class="dot" style="background:var(--bad)"></i>không phải sân</span><span>│ trắng trên = chạm vợt</span><span>● dưới = nảy</span></div></div>
+<div class="row"><div class="lbl"><span>Bóng (xử lý ảnh, thử nghiệm — chưa dùng để cắt pha)</span></div><div id="ballinfo" class="kv" style="margin-top:2px"></div></div>
 <div class="verdict" id="why"></div>
 <div class="row muted" id="score" style="font-size:12px"></div>
 </div></aside></div>
@@ -129,12 +134,36 @@ function drawStrip(R,src){const w=strip.width,h=strip.height;sc.clearRect(0,0,w,
  for(const s of D.samples){if(s.r!==R.i)continue;sc.fillStyle=!s.court?'#ef6b5b':(s.quiet?'#3ecf6e':'#f2b705');sc.fillRect(x(s.t),10,Math.max(2,w/(R.end-R.start)/2+1),h-20)}
  sc.strokeStyle='#e8e6e1';sc.lineWidth=1;sc.strokeRect(x(R.core_start),6,x(R.core_end)-x(R.core_start),h-12);
  sc.fillStyle='#9aa3ad';sc.font='10px system-ui';sc.fillText('lõi pha',x(R.core_start)+3,h-1);
+ if(B){for(const e of B.events){if(e.r!==R.i)continue;const X=x(e.t);if(e.kind==='hit'){sc.fillStyle='#ffffff';sc.fillRect(X-1,0,2,8)}
+   else{sc.fillStyle=e.inside===false?'#ef6b5b':'#3ecf6e';sc.beginPath();sc.arc(X,h-4,3,0,7);sc.fill()}}
+  for(const c of B.calls){if(c.r!==R.i)continue;const X=x(c.t);sc.fillStyle='#ef6b5b';sc.beginPath();sc.moveTo(X,10);sc.lineTo(X-5,0);sc.lineTo(X+5,0);sc.fill()}}
  sc.strokeStyle='#5aa9ff';sc.lineWidth=2;sc.beginPath();sc.moveTo(x(src),0);sc.lineTo(x(src),h);sc.stroke()}
 // Clips are re-encoded one by one; their real lengths drift a few ms each, so map the
 // player clock onto the timecodes proportionally (0.25 s over 62 clips measured).
 const clock=()=>v.duration&&isFinite(v.duration)?v.currentTime*D.total/v.duration:v.currentTime;
 const seekTo=ht=>{v.currentTime=v.duration&&isFinite(v.duration)?ht*v.duration/D.total:ht};
 const cache={},pix={};let debug=false,view='gray';
+const B=D.ball,ov=$('ov'),oc=ov.getContext('2d');let showBall=!!B;
+const evName=e=>e.kind==='hit'?'chạm vợt':(e.inside===false?'nảy ngoài sân':'nảy');
+const callName=c=>c.call==='out'?'bóng ra ngoài':'nảy 2 lần';
+function drawOverlay(ri,src){const W=v.clientWidth,H=v.clientHeight,vw=v.videoWidth||16,vh=v.videoHeight||9,k=Math.min(W/vw,H/vh),w=vw*k,h=vh*k,dpr=window.devicePixelRatio||1;
+ ov.style.left=((W-w)/2)+'px';ov.style.top=((H-h)/2)+'px';ov.style.width=w+'px';ov.style.height=h+'px';
+ if(ov.width!==Math.round(w*dpr)||ov.height!==Math.round(h*dpr)){ov.width=Math.round(w*dpr);ov.height=Math.round(h*dpr)}
+ oc.clearRect(0,0,ov.width,ov.height);if(!B||!showBall)return;
+ const sx=ov.width/320,sy=ov.height/180,TRAIL=.6;oc.lineCap='round';oc.lineJoin='round';
+ for(const tr of B.tracks){if(tr.r!==ri||tr.t[tr.t.length-1]<src-TRAIL||tr.t[0]>src)continue;
+  let n=0,lx=0,ly=0,lt=0;oc.beginPath();
+  for(let i=0;i<tr.t.length;i++){const t=tr.t[i];if(t<src-TRAIL||t>src)continue;const X=tr.x[i]*sx,Y=tr.y[i]*sy;n++?oc.lineTo(X,Y):oc.moveTo(X,Y);lx=X;ly=Y;lt=t}
+  if(!n)continue;oc.strokeStyle='rgba(255,214,0,.9)';oc.lineWidth=3*dpr;oc.stroke();
+  if(src-lt<.07){oc.beginPath();oc.arc(lx,ly,8*dpr,0,7);oc.strokeStyle='#ff453a';oc.lineWidth=2.5*dpr;oc.stroke()}}
+ oc.font='600 '+(14*dpr)+'px system-ui';
+ for(const e of B.events){if(e.r!==ri||Math.abs(src-e.t)>.35)continue;const X=e.x*sx,Y=e.y*sy,col=e.kind==='hit'?'#ffffff':(e.inside===false?'#ef6b5b':'#3ecf6e');
+  oc.strokeStyle=oc.fillStyle=col;oc.lineWidth=2.5*dpr;oc.beginPath();
+  if(e.kind==='hit'){const r=10*dpr;oc.moveTo(X-r,Y-r);oc.lineTo(X+r,Y+r);oc.moveTo(X+r,Y-r);oc.lineTo(X-r,Y+r)}else oc.arc(X,Y,12*dpr,0,7);
+  oc.stroke();oc.fillText(evName(e),X+15*dpr,Y-10*dpr)}
+ for(const c of B.calls){if(c.r!==ri||src<c.t||src>c.t+1.5)continue;oc.font='700 '+(22*dpr)+'px system-ui';oc.fillStyle='#ef6b5b';oc.fillText('Hình thấy: '+callName(c)+'?',16*dpr,34*dpr)}}
+$('ballbtn').onclick=()=>{showBall=!showBall;$('ballbtn').classList.toggle('on',showBall);update()};
+if(!B){$('ballbtn').disabled=true;$('ballbtn').classList.remove('on');$('ballbtn').title='Chưa bám bóng: phân tích lại video'}
 const side=$('side').getContext('2d');
 function img(url,S){if(!url)return null;let im=cache[url];if(!im){im=cache[url]=new Image();im.onload=()=>{if(last===S)drawKeyframe(S)};im.src=url}return im.complete&&im.naturalWidth?im:null}
 function pixels(url,im){if(pix[url])return pix[url];const c=document.createElement('canvas');c.width=320;c.height=180;const x=c.getContext('2d');x.drawImage(im,0,0,320,180);
@@ -155,6 +184,16 @@ function drawKeyframe(S){if(!S)return;last=S;const rgb=img(S.img,S);if(!rgb)retu
    for(let i=0;i<320*180;i++){const y=Math.round(.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2]);out.data[i*4]=out.data[i*4+1]=out.data[i*4+2]=y;out.data[i*4+3]=255}
    kf.putImageData(out,0,0);done.ok=true}else kf.drawImage(rgb,0,0,320,180)}
  else if(view==='canny'){const e=img(S.edges,S);kf.fillStyle='#000';kf.fillRect(0,0,320,180);if(e){kf.drawImage(e,0,0,320,180);done.ok=true}if(S.court&&cd)drawSegs(cd.segments)}
+ else if(view==='ball'){const d=pixels(S.img,rgb);if(d){const out=kf.createImageData(320,180);
+   for(let i=0;i<320*180;i++){const y=Math.round((.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2])*.6);out.data[i*4]=out.data[i*4+1]=out.data[i*4+2]=y;out.data[i*4+3]=255}kf.putImageData(out,0,0)}
+  else{kf.fillStyle='#000';kf.fillRect(0,0,320,180)}
+  const cam=S.tpl,R=D.rallies[S.r];
+  if(B&&S.court){const hl=B.hulls[String(cam)];if(hl){kf.strokeStyle='#ffffff';kf.lineWidth=1;kf.beginPath();hl.forEach((p,i)=>i?kf.lineTo(p[0],p[1]):kf.moveTo(p[0],p[1]));kf.closePath();kf.stroke()}
+   for(const tr of B.tracks){if(tr.r!==S.r||tr.cam!==cam)continue;const f=(tr.t[0]-R.start)/Math.max(.1,R.end-R.start);
+    kf.strokeStyle='hsl('+Math.round(240-240*f)+',90%,58%)';kf.lineWidth=1.5;kf.beginPath();tr.x.forEach((x,i)=>i?kf.lineTo(x,tr.y[i]):kf.moveTo(x,tr.y[i]));kf.stroke()}
+   for(const e of B.events){if(e.r!==S.r||e.cam!==cam)continue;kf.strokeStyle=e.kind==='hit'?'#ffffff':(e.inside===false?'#ef6b5b':'#3ecf6e');kf.lineWidth=1.5;kf.beginPath();
+    if(e.kind==='hit'){kf.moveTo(e.x-4,e.y-4);kf.lineTo(e.x+4,e.y+4);kf.moveTo(e.x+4,e.y-4);kf.lineTo(e.x-4,e.y+4)}else kf.arc(e.x,e.y,4,0,7);kf.stroke()}}
+  done.ok=!!d}
  else{const e=img(S.edges,S),t=cd?img(cd.template,S):null;kf.fillStyle='#000';kf.fillRect(0,0,320,180);
   if(e&&t){const E=binary(S.edges,e),T=binary(cd.template,t);if(E&&T){const Ew=dilate(E),Tw=dilate(T),out=kf.createImageData(320,180);
    for(let i=0;i<E.length;i++){let c=[0,0,0];if(T[i]&&Ew[i])c=[62,207,110];else if(T[i])c=[90,96,108];else if(E[i]&&!Tw[i])c=[239,107,91];else if(E[i])c=[62,207,110];
@@ -162,7 +201,8 @@ function drawKeyframe(S){if(!S)return;last=S;const rgb=img(S.img,S);if(!rgb)retu
  kf.strokeStyle=S.court?'#3ecf6e':'#ef6b5b';kf.lineWidth=4;kf.strokeRect(2,2,316,176);
  if(debug){const n=S.rec==null?'':'khớp khuôn cam '+S.tpl+': recall <b>'+S.rec.toFixed(2)+'</b> · precision <b>'+S.prec.toFixed(2)+'</b> → Dice <b>'+(S.score??0).toFixed(2)+'</b> (ngưỡng Otsu '+(D.court_threshold??0).toFixed(2)+')';
   const leg={gray:'Ảnh xám: đầu vào của Gauss 3×3 → Canny.',canny:'Canny 50/150 sau Gauss 3×3 (đúng ảnh code lưu). Đoạn Hough của khuôn: xanh = vạch sơn giữ, đỏ đứt = loại.',
-   match:'Xanh = biên trùng khuôn · đỏ = biên của khung không nằm trên khuôn (làm giảm precision) · xám = khuôn không thấy trong khung (làm giảm recall).'}[view];
+   match:'Xanh = biên trùng khuôn · đỏ = biên của khung không nằm trên khuôn (làm giảm precision) · xám = khuôn không thấy trong khung (làm giảm recall).',
+   ball:(B?'Mọi đường bay của pha trên camera này, màu theo thời gian (xanh dương → đỏ); khung trắng = bao lồi các vạch sơn; ○ nảy (xanh trong / đỏ ngoài sân), × chạm vợt. '+'Bóng = ứng viên vàng (HSV) ∧ hiệu hai khung ∧ hình dạng → nối qua khung theo vận tốc → cắt thành parabol (BIC) → giữ đoạn cong xuống theo trọng lực, đi xa (Otsu) và chạm mặt sân.':'Chưa bám bóng: phân tích lại video ở chế độ pha bóng.')}[view];
   $('dbgcap').innerHTML=leg+'<br>'+n;if(!drawSide(S,cd))done.ok=false}}
 function drawSide(S,cd){const w=200,h=300;side.fillStyle='#0b0d11';side.fillRect(0,0,w,h);side.font='10px system-ui';
  const hough=S.court&&cd?img(cd.hough,S):null;if(S.court&&cd&&!hough)return false;
@@ -202,7 +242,15 @@ function update(){const ht=clock(),ri=rallyAt(ht),R=D.rallies[ri];const src=R.st
   else why='<b class="ok">Giữ</b>: 2 s đệm sau khi khán giả ồn lên, để thấy kết quả pha.';
   $('why').innerHTML=why}
  const p=R.parts||{};$('score').textContent='Điểm pha '+(R.score||0).toFixed(2)+(p.rally_length!=null?' = độ dài '+(2*p.rally_length).toFixed(2)+' và tiếng reo '+(2*p.crowd_reaction).toFixed(2)+' (trung bình thứ hạng)':'');
+ if(B){const ev=B.events.filter(e=>e.r===ri),hits=ev.filter(e=>e.kind==='hit').length,bn=ev.length-hits,cs=B.calls.filter(c=>c.r===ri);
+  const tracked=B.stretches.filter(x=>x.r===ri).reduce((a,x)=>a+x.end-x.start,0),near=ev.find(e=>Math.abs(e.t-src)<=.35);
+  $('ballinfo').innerHTML='Bám trên '+tracked.toFixed(1)+' s cảnh sân · <b>'+hits+'</b> chạm vợt · <b>'+bn+'</b> nảy · '+
+   (cs.length?'<span class="bad">hình thấy bóng chết: '+cs.map(c=>callName(c)+' '+fmt(c.t)).join(', ')+'</span>':'<span class="muted">chưa thấy dấu hiệu bóng chết trên hình</span>')+
+   (near?'<br>Lúc này: <b>'+evName(near)+'</b>':'')}
+ else $('ballinfo').innerHTML='<span class="muted">Chưa bám bóng: phân tích lại video ở chế độ pha bóng.</span>';
+ drawOverlay(ri,src);
  drawStrip(R,src)}
+window.addEventListener('resize',()=>{if(last)update()});
 v.addEventListener('timeupdate',update);v.addEventListener('seeked',update);v.addEventListener('loadeddata',update);
 (function loop(){if(!v.paused)update();requestAnimationFrame(loop)})();
 $('tog').onclick=()=>$('panel').classList.toggle('min');

@@ -17,6 +17,7 @@ Pipeline (classical CV only):
    The bounce/hit split relies on the side-to-side motion, so it is clearest on a side camera.
 """
 from pathlib import Path
+import json
 import cv2
 import numpy as np
 from core import otsu_threshold
@@ -25,6 +26,7 @@ from rally_evidence import ball_candidates
 ANALYSIS_SIZE = (320, 180)          # court lines are stored in this frame size
 LINK_RADIUS = .014                  # max miss of the constant-velocity prediction, share of frame width (12 px at 854)
 MIN_TRACK_SECONDS = .2              # shortest tracklet kept as ball flight
+SCENE_CUT = .25                     # mean abs frame difference that marks a cut (rally_evidence.track_ball's rule)
 
 
 def court_hull(lines, size):
@@ -61,17 +63,19 @@ def court_region(ground):
 
 
 def candidates(video, start, end, region=None):
-    """Per frame list of (x, y) ball candidates in [start, end) seconds at native fps."""
+    """Per frame list of (x, y) ball candidates in [start, end) seconds at native fps; stops at a scene cut
+    (stretches come from 2 fps samples, so a cut can fall up to half a second inside)."""
     cap = cv2.VideoCapture(str(video)); fps = cap.get(cv2.CAP_PROP_FPS)
     cap.set(cv2.CAP_PROP_POS_FRAMES, int(round(start*fps)))
     prev = None; out = []; size = None
     for _ in range(int(round((end-start)*fps))):
         ok, frame = cap.read()
         if not ok: break
-        size = frame.shape[1], frame.shape[0]
+        size = frame.shape[1], frame.shape[0]; gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if prev is not None and np.mean(cv2.absdiff(gray, prev))/255 > SCENE_CUT: break   # the court shot ended
         found = [(x, y) for x, y, _ in ball_candidates(frame, prev)]
         if region is not None: found = [(x, y) for x, y in found if region[int(y), int(x)]]
-        out.append(found); prev = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        out.append(found); prev = gray
     cap.release()
     return out, fps, size
 
@@ -240,3 +244,45 @@ def draw(result, background, path=None):
             cv2.putText(img, 'H', (c[0]+8, c[1]+5), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 2)
     if path: cv2.imwrite(str(path), img)
     return img
+
+
+def rally_ball_paths(video, df, meta, segments, out=None, progress=None):
+    """Ball path over every court-camera stretch of the kept rallies, in analysis (320x180) pixels
+    and source seconds. Written to out/ball_paths.json for the decision panel."""
+    from core import court_mask
+    court = court_mask(df, meta); t = df.time.to_numpy(); step = 1/meta.get('sample_fps', 2.)
+    cam_of = df.court_template.to_numpy() if 'court_template' in df else df.camera.to_numpy()
+    debug, lines_of = meta.get('court_debug', {}), meta.get('court_lines', {})
+    stretches = []
+    for i, s in enumerate(segments):
+        idx = np.flatnonzero((t >= s['start']) & (t < s['end']) & court)
+        if not len(idx): continue
+        for run in np.split(idx, np.flatnonzero((np.diff(idx) != 1) | (np.diff(cam_of[idx]) != 0))+1):
+            cam = int(cam_of[run[0]])
+            if len(run) >= 2 and lines_of.get(str(cam)):
+                stretches.append(dict(r=i, cam=cam, start=float(t[run[0]]), end=float(min(t[run[-1]]+step, s['end']))))
+    total = sum(x['end']-x['start'] for x in stretches) or 1.; seen = 0.
+    tracks, events, calls, hulls = [], [], [], {}
+    medians = {}
+    for x in stretches:
+        cam = x['cam']; lines = lines_of[str(cam)]
+        if cam not in medians:
+            name = debug.get(str(cam), {}).get('median')
+            medians[cam] = cv2.imread(str(Path(out)/name), 0) if out and name and (Path(out)/name).exists() else None
+        r = ball_path(video, x['start'], x['end'], lines, medians[cam])
+        sx, sy = ANALYSIS_SIZE[0]/r['size'][0], ANALYSIS_SIZE[1]/r['size'][1]
+        first = int(round(x['start']*r['fps'])); T = lambda f: round((first+f)/r['fps'], 3)
+        hulls[str(cam)] = court_hull(lines, ANALYSIS_SIZE).tolist()
+        for tr in r['tracks']:
+            tracks.append(dict(r=x['r'], cam=cam, t=[T(f) for f in tr['f']],
+                               x=[round(p[0]*sx, 1) for p in tr['p']], y=[round(p[1]*sy, 1) for p in tr['p']]))
+        for e in r['events']:
+            events.append(dict(r=x['r'], cam=cam, t=T(e['frame']), kind=e['kind'], x=round(e['x']*sx, 1),
+                               y=round(e['y']*sy, 1), inside=e.get('inside')))
+        calls += [dict(r=x['r'], cam=cam, t=T(c['frame']), call=c['call']) for c in r['calls']]
+        seen += x['end']-x['start']
+        if progress: progress(seen/total)
+    result = dict(stretches=stretches, tracks=tracks, events=sorted(events, key=lambda e: e['t']),
+                  calls=sorted(calls, key=lambda c: c['t']), hulls=hulls)
+    if out: (Path(out)/'ball_paths.json').write_text(json.dumps(result), encoding='utf-8')
+    return result

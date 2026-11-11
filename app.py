@@ -46,6 +46,9 @@ if run:
         if mode=='rally':
             bar.progress(1.,text='Đang chọn ảnh cầu thủ lúc vung vợt…')
             (out/'shots.json').write_text(json.dumps(best_shots(source,segments,out),ensure_ascii=False,indent=2),encoding='utf-8')
+            from ball_path import rally_ball_paths
+            bar.progress(0.,text='Đang bám đường bóng trên các cảnh camera sân…')
+            rally_ball_paths(source,df,meta,segments,out,lambda x:bar.progress(min(1.,x),text='Đang bám đường bóng trên các cảnh camera sân…'))
         report={'input_name':upload.name,'metadata':meta,'settings':dict(ratio=ratio,mode=mode,diversity=diversity,optimizer=optimizer),'segments':segments}
         (out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         st.session_state.result=(out,df,meta,segments,scores,video)

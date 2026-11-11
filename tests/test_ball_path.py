@@ -84,3 +84,32 @@ def test_flights_curve_down_with_gravity():
     jiggle = [dict(f=f, p=[(300.+2*(i % 2), 50.+(i % 3)) for i in f]) for _ in range(3)]
     kept, _ = ball_tracklets([falling, rising]+jiggle, 30)
     assert kept == [falling]
+
+
+def test_candidates_stop_at_a_scene_cut(tmp_path):
+    from ball_path import candidates
+    path = tmp_path/'cut.mp4'
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*'mp4v'), FPS, (W, H))
+    for i in range(60):
+        img = np.full((H, W, 3), (40, 40, 150) if i < 40 else (230, 230, 230), np.uint8)   # cut to a bright shot at 40
+        writer.write(img)
+    writer.release()
+    per_frame, _, _ = candidates(path, 0, 2)
+    assert len(per_frame) == 40
+
+
+def test_rally_ball_paths_in_source_seconds_and_analysis_pixels(tmp_path):
+    import json, pandas as pd
+    from ball_path import rally_ball_paths
+    from decision_view import decision_data
+    path = tmp_path/'rally.mp4'; _video(path, _bounce_then_hit)
+    df = pd.DataFrame(dict(time=np.arange(6)/2, camera=0, court_score=.9, court_template=0, loudness_db=-30.,
+                           image=[f'f{k}.jpg' for k in range(6)]))
+    meta = dict(court_threshold=.5, sample_fps=2., court_lines={'0': COURT}, court_debug={}, duration=3.)
+    seg = [dict(start=0., end=3., core_start=0., core_end=3.)]
+    r = rally_ball_paths(path, df, meta, seg, tmp_path)
+    assert [(e['kind'], round(e['t'])) for e in r['events']] == [('bounce', 1), ('hit', 2)]     # frames 30 and 55 at 30 fps
+    bounce = r['events'][0]
+    assert abs(bounce['x']-340/2) < 6 and abs(bounce['y']-300/2) < 6                       # 640x360 -> 320x180
+    assert json.loads((tmp_path/'ball_paths.json').read_text())['events'] == r['events']
+    assert decision_data(df, meta, seg, r)['ball'] is r
