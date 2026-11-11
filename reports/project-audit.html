@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đối chiếu dự án theo ba mục tiêu pickleball</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1f2328;--muted:#5d6670;--line:#e3e0d8;--card:#ffffff;--accent:#1565c0;--ok:#2e7d32;--bad:#c62828;--hl:#fff3cd;--code:#f2efe8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--fg:#e6e3dd;--muted:#a0a7ae;--line:#2c3036;--card:#1d2024;--accent:#6ea8ff;--ok:#7cc47f;--bad:#ef8a80;--hl:#3a3320;--code:#24282d}}
+:root[data-theme="dark"]{--bg:#15171a;--fg:#e6e3dd;--muted:#a0a7ae;--line:#2c3036;--card:#1d2024;--accent:#6ea8ff;--ok:#7cc47f;--bad:#ef8a80;--hl:#3a3320;--code:#24282d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 6px}
+h2{font-size:1.3rem;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:28px 0 6px}
+.meta{color:var(--muted);font-size:.92rem;margin-bottom:20px}
+p,li{max-width:72ch}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto}
+pre code{background:none;padding:0}
+.tbl{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:.94rem;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+figure{margin:16px 0 22px}
+figure img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+figcaption{color:var(--muted);font-size:.88rem;margin-top:6px}
+.key{background:var(--hl);border-left:4px solid var(--accent);padding:12px 16px;border-radius:6px;margin:14px 0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0;font-size:.9rem}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 9px}
+.flow b{color:var(--muted);font-weight:400}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+nav{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:18px 0}
+nav ol{margin:4px 0;padding-left:20px}
+nav a{color:var(--accent);text-decoration:none}
+p:has(> img){margin:16px 0 4px}
+p img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
+.tbl table td:first-child{min-width:9em}
+</style>
+</head>
+<body>
+<main>
+<!-- Sinh từ project-audit.md bằng reports/build_html.py; sửa file .md rồi chạy lại, đừng sửa tay file này. -->
+<h1 id="oi-chieu-du-an-theo-ba-muc-tieu-pickleball">Đối chiếu dự án theo ba mục tiêu pickleball</h1>
+<p>Cập nhật 08/11/2026. Phạm vi số liệu: kiểm thử tổng hợp và kiểm thử giao diện, chưa đo độ chính xác trên trận có nhãn. Báo cáo anhnhc giữ nguyên các số đo riêng của tác giả trên trận 67 phút; không gộp với kiểm thử hiện tại.</p>
+<nav><strong>Mục lục</strong><ol>
+<li><a href="#1-thieu-gi-a-bo-sung-gi">1. Thiếu gì, đã bổ sung gì</a></li>
+<li><a href="#2-phan-khong-can-at-o-luong-chinh">2. Phần không cần đặt ở luồng chính</a></li>
+<li><a href="#3-thuat-toan-bang-chung-va-logic-pha">3. Thuật toán bằng chứng và logic pha</a></li>
+<li><a href="#4-phuong-phap-anh-gia-can-thuc-hien-truoc-bao-ve">4. Phương pháp đánh giá cần thực hiện trước bảo vệ</a></li>
+<li><a href="#5-trang-thai-cong-viec-cua-nhanh-rally-highlight">5. Trạng thái công việc của nhánh rally-highlight</a></li>
+<li><a href="#6-chay-va-demo">6. Chạy và demo</a></li>
+</ol></nav>
+
+<h2 id="1-thieu-gi-a-bo-sung-gi">1. Thiếu gì, đã bổ sung gì</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Mục tiêu</th>
+<th>Trước đợt chỉnh</th>
+<th>Bổ sung</th>
+<th>Giới hạn còn lại</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Xác định pha bằng bóng/vợt</td>
+<td>Hai baseline gián tiếp: chuyển động sân; camera + âm thanh. Chưa có quỹ đạo</td>
+<td><code>rally_evidence.py</code>: ứng viên HSV + chuyển động + hình dạng; nối theo dự đoán vận tốc; chạy FPS gốc trên đoạn ≤120s; overlay, CSV, ảnh ứng viên đổi hướng</td>
+<td>Chưa có detector mặt vợt/sàn; đổi hướng chưa xác nhận tiếp xúc. Vẫn cần dữ liệu thật và nhãn để đánh giá</td>
+</tr>
+<tr>
+<td>Ranh giới pha có bằng chứng</td>
+<td>Mốc heuristic, không có nhãn sự kiện</td>
+<td>Bảng xác nhận giao bóng/chạm vợt/bóng nảy/mất dấu/kết thúc; máy trạng thái chỉ ghép cặp giao bóng–kết thúc đã xác nhận; lưu nhãn JSON</td>
+<td>Sự kiện xác nhận do người xem nhập; không được báo cáo là phát hiện tự động</td>
+</tr>
+<tr>
+<td>Ghép toàn bộ pha</td>
+<td>Mặc định giới hạn ba phút hoặc tỷ lệ, có thể bỏ pha</td>
+<td>Mặc định toàn bộ ứng viên đủ điều kiện, tùy chọn giới hạn; xuất tất cả pha đã xác nhận; CSV mapping source_start/end → highlight_start/end</td>
+<td>“Toàn bộ ứng viên” không bảo đảm đủ toàn bộ pha thật; khoảng dài bất thường cần duyệt</td>
+</tr>
+<tr>
+<td>Ảnh góc ngang</td>
+<td>Trừ nền chọn ảnh, chưa xác nhận góc ngang, chưa xử lý nét/mờ</td>
+<td>Người dùng xác nhận góc ngang có sẵn, chọn khoảng ≤20s và ROI vận động viên; khung nét nhất ở FPS gốc; NLM + unsharp; tùy chọn inverse filter PSF tuyến tính có regularization; ảnh gốc/sau, thông số JSON</td>
+<td>Không tạo góc nhìn không có trong nguồn. PSF sai có thể tạo ringing; không thể phục hồi chắc chắn chi tiết đã mất</td>
+</tr>
+<tr>
+<td>Đánh giá phù hợp môn vợt</td>
+<td>F1 summary/boundary chung</td>
+<td>Event/rally interval F1 với ghép một-một tại IoU≥0.5; sai số mốc đầu/cuối trên cặp khớp; nhập nhãn độc lập trong giao diện</td>
+<td>Cần nhiều trận, nhiều góc camera, nhãn độc lập; chưa có số đo accuracy thật</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="2-phan-khong-can-at-o-luong-chinh">2. Phần không cần đặt ở luồng chính</h2>
+<ul>
+<li>Bài giảng, khuôn mặt, histogram và chọn cụm đa dạng không xác định trực tiếp pha pickleball. Giữ trong <strong>Phòng thí nghiệm: baseline / video khác</strong> để ablation, không đưa thành tiêu chí chính của sản phẩm.</li>
+<li>Knapsack/chọn tỷ lệ chỉ cần cho video ngắn quảng bá; không ép ngân sách khi mục tiêu là ghép toàn bộ pha.</li>
+<li>Ảnh vận động viên là tùy chọn, không chạy bắt buộc cho toàn trận; ưu tiên hoàn thành và đánh giá hai mục tiêu đầu.</li>
+<li>Không thêm mô hình lớn hoặc các API sinh nội dung khi chưa có dữ liệu đánh giá. Không dùng ảnh tăng nét để tuyên bố đã nhận đúng bóng/vợt.</li>
+</ul>
+<h2 id="3-thuat-toan-bang-chung-va-logic-pha">3. Thuật toán bằng chứng và logic pha</h2>
+<p>Nguồn ở FPS gốc → ROI sân → HSV vàng/xanh ∩ sai khác khung → connected components → kích thước/tỷ lệ/hình dạng → dự đoán vị trí bằng vận tốc → nối ứng viên trong khoảng gating → mốc đổi hướng và ảnh bằng chứng.</p>
+<p>Điểm mất dấu được ghi <code>observed=false</code>; không vẽ nội suy như quan sát thật. Sau mất dấu dài hoặc chuyển cảnh, tracker tạo track mới. Khởi tạo lại chọn blob lớn nhất trong tập ứng viên nhỏ nên có thể nhầm giày/mũ/bảng điểm. <code>observation_fraction</code> chỉ là tỷ lệ khung có ứng viên được nối, tuyệt đối không phải accuracy/recall. Hiện hue và ROI chỉnh được; các thông số hình dạng là heuristic cần validation theo dữ liệu.</p>
+<p>State machine: chờ <code>serve</code> được xác nhận → pha đang mở → các <code>paddle_contact</code>/<code>bounce</code>/<code>occluded</code> không tự đóng pha → <code>rally_end</code> được xác nhận đóng pha. Giao bóng mới khi pha cũ chưa đóng sẽ đưa cảnh báo, không âm thầm ghép. Pha còn mở cuối video cũng không tự coi là hoàn chỉnh.</p>
+<p>Bóng nảy một lần không kết thúc pha. Tham khảo quy tắc hai lần nảy: https://usapickleball.org/rules/summary/. Ranh giới tự động hoàn toàn từ bóng–vợt–sàn chưa đạt; giao diện phân biệt bằng chứng thử nghiệm, ứng viên và nhãn đã xác nhận.</p>
+<h2 id="4-phuong-phap-anh-gia-can-thuc-hien-truoc-bao-ve">4. Phương pháp đánh giá cần thực hiện trước bảo vệ</h2>
+<ol>
+<li>Thu ít nhất vài trận ở nhiều góc nhìn/độ phân giải; tách theo trận thành validation/test. Không chọn ngưỡng trên test.</li>
+<li>Chấm nhãn bóng từng khung trên các đoạn ngắn: tọa độ, visible/occluded. Chấm cả mốc giao bóng/chạm vợt/bóng nảy/kết thúc. Hai người đối chiếu bất đồng.</li>
+<li>Đo detection recall/precision theo khoảng cách pixel đã quy định, tỷ lệ track đứt, sai sự kiện; không lấy tỷ lệ observed làm độ chính xác.</li>
+<li>Đánh giá rally: precision/recall/F1 tại IoU 0.3/0.5/0.7, MAE start/end trên cặp khớp; báo cáo số pha bị bỏ/ghép nhầm/cắt mất đầu/cuối. Tách kết quả tự động và sau người duyệt.</li>
+<li>Đối với ảnh: đánh giá mù ảnh gốc/sau, ngẫu nhiên thứ tự; hỏi độ nét tự nhiên, khuôn mặt/tư thế, ringing. Không dùng chỉ số Laplacian tăng sau sharpen làm bằng chứng chất lượng tốt hơn.</li>
+</ol>
+<h2 id="5-trang-thai-cong-viec-cua-nhanh-rally-highlight">5. Trạng thái công việc của nhánh rally-highlight</h2>
+<p>V3 có bản thử nghiệm ứng viên bóng/quỹ đạo và bằng chứng chạy được; <strong>chưa hoàn tất điều kiện đo với đếm tay trên video thật</strong>. V4 có công cụ xác nhận và máy trạng thái, <strong>chưa tự động nhận tiếp xúc bóng–vợt/sàn</strong>. V6 có bộ lọc và so sánh gốc/sau, góc ngang <strong>do người dùng xác nhận</strong>, chưa phân loại góc tự động. V1/V2/V5 cần dữ liệu/đánh giá tiếp. Không đánh dấu các việc đó hoàn thành chỉ vì có giao diện.</p>
+<h2 id="6-chay-va-demo">6. Chạy và demo</h2>
+<p><code>python -m pytest -q</code> chạy các kiểm thử. <code>python -m streamlit run app.py</code> mở localhost. Notebook <code>ProjectGoals.ipynb</code> minh họa ba mục tiêu với dữ liệu tổng hợp; code tái tạo trong <code>make_project_notebook.py</code>. Sinh lại HTML: <code>python reports/build_html.py reports/project-audit.md</code> (cần package markdown).</p>
+<p>Demo: tải video → toàn bộ pha → xem/chỉnh mốc → kiểm tra quỹ đạo đoạn ngắn → nhập sự kiện đã kiểm tra → xuất pha đã xác nhận cùng timecodes → chọn góc ngang có sẵn → xem ảnh trước/sau. Không có nhãn/video thật đủ để tuyên bố dự án đã tự động hiểu mọi pha hay bảo đảm điểm môn học.</p>
+</main>
+</body>
+</html>

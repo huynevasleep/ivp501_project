@@ -1,0 +1,191 @@
+import cv2
+import numpy as np
+import pandas as pd
+import pytest
+from core import detect_rallies, select, best_shots, otsu_threshold
+
+FPS = 2
+
+
+def timeline(spec):
+    """spec: list of (seconds, camera, loudness_db). Camera 0 = fixed court view, 1 = handheld close-up."""
+    rows = []
+    for seconds, camera, db in spec:
+        for _ in range(int(seconds*FPS)):
+            rows.append(dict(time=len(rows)/FPS, camera=camera, motion=.5 if camera == 0 else 6., loudness_db=db, image=f'f{len(rows)}.jpg'))
+    df = pd.DataFrame(rows)
+    return df, dict(duration=len(rows)/FPS, sample_fps=FPS)
+
+
+MATCH = [(5, 1, -20), (3, 0, -21), (12, 0, -31), (4, 1, -18),   # waiting, long rally, close-up cheer
+         (3, 0, -21), (3, 0, -30), (3, 0, -15),                  # short rally, huge cheer (an ace?)
+         (5, 1, -20), (0.5, 0, -31), (5, 1, -20)]                 # 0.5 s quiet: not a rally
+
+
+def test_otsu_splits_bimodal():
+    values = np.r_[np.full(50, -31.), np.full(50, -20.)]
+    assert -31 < otsu_threshold(values) < -20
+
+
+def test_rallies_are_quiet_court_stretches_with_serve_and_reaction():
+    df, meta = timeline(MATCH)
+    rallies = detect_rallies(df, meta)
+    assert [(r['core_start'], r['core_end']) for r in rallies] == [(8., 20.), (27., 30.)]
+    assert rallies[0]['start'] == 7. and rallies[0]['end'] == 22.      # 1 s before the serve, 2 s of reaction
+    assert all(a['end'] <= b['start'] for a, b in zip(rallies, rallies[1:]))
+
+
+def test_pre_roll_does_not_reach_into_the_close_up():
+    df, meta = timeline([(4, 1, -20), (6, 0, -31), (4, 1, -18)])   # close-up, then the serve right after the cut
+    (rally,) = detect_rallies(df, meta)
+    assert rally['start'] == rally['core_start'] == 4.
+
+
+def test_scores_reward_long_rally_and_loud_reaction():
+    df, meta = timeline(MATCH)
+    long_rally, ace = detect_rallies(df, meta)
+    assert long_rally['contributions']['rally_length'] > ace['contributions']['rally_length']
+    assert ace['contributions']['crowd_reaction'] > long_rally['contributions']['crowd_reaction']
+
+
+def test_close_padding_is_split_in_the_pause():
+    df, meta = timeline([(4, 0, -31), (1, 0, -18), (4, 0, -31), (3, 1, -20)])
+    a, b = detect_rallies(df, meta, gap=0)
+    assert a['end'] == b['start'] == 4.5
+
+
+def test_select_keeps_whole_rallies_within_budget():
+    df, meta = timeline(MATCH)
+    rallies = detect_rallies(df, meta)
+    for optimizer in ('greedy', 'knapsack'):
+        chosen, score = select(df, meta, ratio=.4, mode='rally', optimizer=optimizer)
+        assert chosen and all(any(c['start'] == r['start'] and c['end'] == r['end'] for r in rallies) for c in chosen)
+        assert sum(c['end']-c['start'] for c in chosen) <= meta['duration']*.4
+        assert len(score) == len(df)
+    chosen, _ = select(df, meta, ratio=.05, mode='rally')    # 2.4 s budget: no rally fits, none is cut
+    assert chosen == []
+
+
+def test_ratio_one_keeps_every_rally():
+    df, meta = timeline(MATCH)
+    chosen, _ = select(df, meta, ratio=1., mode='rally')
+    assert [(c['start'], c['end']) for c in chosen] == [(r['start'], r['end']) for r in detect_rallies(df, meta)]
+
+
+def test_best_shot_crops_the_moving_player(tmp_path):
+    path = tmp_path/'court.mp4'; fps = 24
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*'mp4v'), fps, (320, 240))
+    rng = np.random.default_rng(0)
+    floor = (rng.random((240, 320, 3))*60+90).astype(np.uint8)     # textured, so sharpness is measurable
+    player = (rng.random((100, 40, 3))*255).astype(np.uint8)
+    phase = 0.
+    for i in range(fps*4):
+        phase += .6 if 30 <= i < 60 else .08                            # moves slowly, swings fast in the middle
+        x = 100+int(40*np.sin(phase))
+        frame = floor.copy(); frame[90:190, x:x+40] = player
+        writer.write(frame)
+    writer.release()
+    shots = best_shots(path, [dict(start=0., end=4.)], tmp_path)
+    assert len(shots) == 1
+    shot = shots[0]
+    assert 30 <= shot['frame'] < 60
+    assert shot['box'][3] >= 90
+    assert (tmp_path/shot['image']).exists() and (tmp_path/shot['full_image']).exists()
+
+
+def _court_frame(rng, shift=0):
+    """Fixed court camera: straight court lines on a textured floor; players move."""
+    img = (rng.random((180, 320))*30+60).astype(np.uint8)
+    for y in (40, 90, 150):
+        cv2.line(img, (20, y), (300, y), 255, 2)
+    cv2.line(img, (20, 40), (20, 150), 255, 2); cv2.line(img, (300, 40), (300, 150), 255, 2)
+    x = int(rng.integers(40, 260)); cv2.rectangle(img, (x, 60+shift), (x+12, 100+shift), 200, -1)
+    return cv2.GaussianBlur(img, (5, 5), 0)
+
+
+def test_court_cameras_from_edges_alone():
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(0)
+    frames, camera = [], []
+    for _ in range(30): frames.append(_court_frame(rng)); camera.append(0)                    # fixed court camera
+    for _ in range(30):                                                                          # hand-held close-up: edges move every frame
+        img = np.zeros((180, 320), np.uint8); cx, cy = rng.integers(60, 260), rng.integers(40, 140)
+        cv2.circle(img, (int(cx), int(cy)), int(rng.integers(20, 60)), 255, -1); frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(1)
+    for _ in range(30):                                                                          # static but with no straight lines
+        img = np.zeros((180, 320), np.uint8); cv2.circle(img, (160, 90), 50, 255, -1); frames.append(cv2.GaussianBlur(img, (9, 9), 0)); camera.append(2)
+    for _ in range(30):                                                                          # static banner: a straight step edge, no paint
+        img = np.full((180, 320), 40, np.uint8); img[:70] = 220; frames.append(cv2.GaussianBlur(img, (5, 5), 0)); camera.append(3)
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    _, ids_without_paint_check, _, _ = court_cameras(edges, camera)
+    assert 3 in ids_without_paint_check                          # Hough alone takes the banner edge for a court line
+    score, court_ids, lines, debug = court_cameras(edges, camera, lambda k: frames[k])
+    assert court_ids == [0]
+    assert score[:30].min() > .8 and score[30:].max() < .3
+    assert len(lines[0]) >= 4                                   # the painted court lines, in pixels
+
+
+def test_painted_line_vs_banner_edge():
+    from core import is_painted_line
+    court = np.full((180, 320), 60, np.uint8); cv2.line(court, (20, 90), (300, 90), 230, 2)
+    banner = np.full((180, 320), 40, np.uint8); banner[:90] = 220
+    assert is_painted_line(court, (20, 89, 300, 89)) > .9          # segment on the border of the paint
+    assert is_painted_line(banner, (20, 90, 300, 90)) < .1
+
+
+def test_detect_rallies_uses_edge_court_score():
+    df, meta = timeline(MATCH)
+    df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
+    df['motion'] = 1.                                           # motion no longer decides
+    assert [(r['core_start'], r['core_end']) for r in detect_rallies(df, meta)] == [(8., 20.), (27., 30.)]
+
+
+def test_decision_panel_data_follows_detect_rallies():
+    from decision_view import decision_data
+    df, meta = timeline(MATCH)
+    df['court_score'] = np.where(df.camera == 0, .9, .1); meta['court_threshold'] = .5
+    meta['court_lines'] = {'0': [[20, 40, 300, 40]]}
+    chosen, _ = select(df, meta, ratio=1., mode='rally')
+    data = decision_data(df, meta, chosen)
+    assert [r['start'] for r in data['rallies']] == [c['start'] for c in chosen]
+    assert data['rallies'][1]['hl_start'] == chosen[0]['end']-chosen[0]['start']       # highlight clock
+    assert data['total'] == sum(c['end']-c['start'] for c in chosen)
+    inside = [s for s in data['samples'] if chosen[0]['core_start'] <= s['t'] < chosen[0]['core_end']]
+    assert inside and all(s['court'] and s['quiet'] for s in inside)                   # the core is court + quiet
+    assert all(s['r'] in (0, 1) for s in data['samples'])                               # only samples of kept rallies
+    assert data['court_lines'] == meta['court_lines']
+
+
+def test_hough_peak_matches_segment_rho_theta():
+    from core import hough_space, segment_rho_theta
+    for seg in ([20, 50, 300, 50], [100, 10, 100, 170], [40, 160, 200, 30]):
+        img = np.zeros((180, 320), np.uint8); cv2.line(img, tuple(seg[:2]), tuple(seg[2:]), 255, 1)
+        acc, rho_max = hough_space(img > 0)
+        r, t = np.unravel_index(np.argmax(acc), acc.shape)
+        rho, theta = segment_rho_theta(seg)
+        assert abs((r-rho_max)-rho) <= 1.5 and min(abs(t-theta), 180-abs(t-theta)) <= 1.5
+
+
+def test_court_debug_is_consistent_with_score():
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(1)
+    frames = [_court_frame(rng) for _ in range(20)]
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    score, ids, lines, debug = court_cameras(edges, [0]*20, lambda k: frames[k])
+    r, p = debug['recall'], debug['precision']
+    assert np.allclose(score, 2*r*p/(r+p))
+    assert set(debug['best']) == {0} and debug['templates'][0].shape == (180, 320)
+    assert len(debug['segments'][0]) >= len(lines[0])                 # every Hough segment, kept or not
+
+
+def test_short_diagonal_court_line_is_found():
+    """A far court camera's sideline runs ~55 px: shorter than 1/5 of the width, still a court line."""
+    from core import _edges, court_cameras
+    rng = np.random.default_rng(2)
+    frames = []
+    for _ in range(20):
+        img = (rng.random((180, 320))*30+60).astype(np.uint8)
+        cv2.line(img, (100, 100), (120, 150), 255, 2)                 # ~54 px sideline, nothing longer
+        frames.append(cv2.GaussianBlur(img, (5, 5), 0))
+    edges = np.array([np.packbits(_edges(f)) for f in frames])
+    _, ids, lines, _ = court_cameras(edges, [0]*20, lambda k: frames[k])
+    assert ids == [0] and lines[0]

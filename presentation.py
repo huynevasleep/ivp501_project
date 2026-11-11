@@ -3,8 +3,9 @@ import pandas as pd
 
 FEATURES = {'motion_norm':'Chuyển động', 'faces_norm':'Khuôn mặt',
             'sharpness_norm':'Độ nét', 'color_norm':'Thay đổi màu sắc',
-            'difference_norm':'Thay đổi hình ảnh'}
-MODES = {'balanced':'Tổng quát', 'sports':'Thể thao', 'lecture':'Bài giảng',
+            'difference_norm':'Thay đổi hình ảnh', 'rally_length':'Độ dài pha bóng',
+            'crowd_reaction':'Khán giả phản ứng sau pha bóng'}
+MODES = {'rally':'Thể thao có pha bóng (pickleball, tennis…)', 'balanced':'Tổng quát', 'sports':'Thể thao', 'lecture':'Bài giảng',
          'motion':'Thử nghiệm: chỉ chuyển động', 'no_motion':'Thử nghiệm: bỏ chuyển động'}
 METHODS = {'uniform':'Chọn trải đều theo thời gian','motion':'Chỉ chuyển động',
            'hybrid':'Kết hợp + đa dạng','no_diversity':'Kết hợp, bỏ đa dạng',
