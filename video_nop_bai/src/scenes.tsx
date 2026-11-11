@@ -234,7 +234,7 @@ export const EndToEndScene: React.FC<{duration: number}> = ({duration}) => {
         >
           <OffthreadVideo muted src={staticFile('output_preview.mp4')} style={{width: '100%', display: 'block'}} />
           <div style={{fontSize: 22, color: COLORS.dim, padding: '10px 16px', background: 'rgba(0,0,0,.35)'}}>
-            Một đoạn liên tục trong highlight đầu ra — các đoạn nối tiếp nhau, giữ âm thanh gốc
+            Pha 94,5 → 116 s trong highlight đầu ra — trước khi sửa bị chặt thành 3 mảnh, nay liền một pha
           </div>
         </div>
       </div>

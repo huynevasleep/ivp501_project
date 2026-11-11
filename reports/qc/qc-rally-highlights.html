@@ -68,6 +68,7 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><a href="#61-a-lam-them-nhan-viec-theo-co-che-muc-7-bao-cao-tach-pha">6.1 Đã làm thêm (nhận việc theo cơ chế mục 7 báo cáo tách pha)</a></li>
 <li><a href="#62-anh-gia-tren-hai-video-that-youtube-shorts-moi-video-mot-pha-camera-on">6.2 Đánh giá trên hai video thật (YouTube Shorts, mỗi video một pha, camera đơn)</a></li>
 <li><a href="#63-vong-qc-1011-tren-video-11-phut-hai-gia-inh-bi-pha-hai-lan-khac-phuc-mot-han-che-con-lai">6.3 Vòng QC 10/11 trên video 11 phút: hai giả định bị phá, hai lần khắc phục, một hạn chế còn lại</a></li>
+<li><a href="#64-vong-qc-1111-o-chinh-xac-cua-highlight-tran-67-phut">6.4 Vòng QC 11/11: độ chính xác của highlight trận 67 phút</a></li>
 </ul>
 </li>
 <li><a href="#7-sinh-lai-ban-html">7. Sinh lại bản HTML</a></li>
@@ -448,6 +449,8 @@ p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
 <li><strong>Còn lại:</strong> khoảnh khắc <em>chuyển</em> zoom (mờ chuyển động, điểm rơi tới 0,62 trong ~4 s) vẫn tách đoạn — thuộc việc mở V5 (bám khuôn có bù tỷ lệ). Vì vậy trên video này đầu ra được mô tả đúng mức là <strong>19 đoạn toàn sân liên tục / 8,8 phút (79%)</strong> — KHÔNG claim "pha trọn vẹn" (so sánh: bật âm thanh 51 mảnh / 7,1 phút). Suite sau hai sửa: <strong>41 test pass</strong>.</li>
 </ol>
 <p>Bài học QC: con số pha/phút tự nó không chứng minh gì — <strong>soi khung hình tại mốc cắt</strong> là phép kiểm bắt buộc, và chính nó bắt được cả hai lỗi trên.</p>
+<h3 id="64-vong-qc-1111-o-chinh-xac-cua-highlight-tran-67-phut">6.4 Vòng QC 11/11: độ chính xác của highlight trận 67 phút</h3>
+<p>Báo cáo riêng: <a href="qc-highlight-67p.md">qc-highlight-67p.md</a>. Tóm tắt: lấy mẫu có nhãn tại mốc cắt cho thấy với mặc định cũ chỉ <strong>33%</strong> pha đúng hoàn toàn (6 loại lỗi; gốc là cổng âm thanh chập chờn do BLV); đổi mặc định <code>detect_rallies</code> thành <code>gap=5, pre=3</code> vá 17/21 mẫu lỗi không hỏng mẫu đúng nào; trên <strong>mẫu độc lập</strong> sau sửa: <strong>70%</strong> pha đúng (82% nếu bỏ ca không rõ), chỉ còn lỗi cắt đuôi. 56 test pass.</p>
 <h2 id="7-sinh-lai-ban-html">7. Sinh lại bản HTML</h2>
 <pre><code class="language-bash">.venv/bin/pip install markdown
 .venv/bin/python reports/build_html.py

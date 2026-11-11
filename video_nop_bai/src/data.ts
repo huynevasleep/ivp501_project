@@ -23,18 +23,18 @@ export const PIPELINE: { step: string; algo: string; img: string; cap: string }[
   { step: 'Giảm nhiễu Gauss 3×3 → detect biên Canny 50/150', algo: 'Canny', img: 'steps/b2_canny.png', cap: 'Bản đồ biên Canny của đúng khung đó' },
   { step: 'Khuôn biên mỗi cụm camera = trung vị bản đồ biên', algo: 'K-means + Dice', img: 'steps/b3_khuon.png', cap: 'Khuôn biên: chỉ giữ biên đứng yên qua các khung cùng cụm' },
   { step: 'Camera sân = khuôn ổn định có vạch thẳng Hough', algo: 'Hough', img: 'steps/b4_hough.png', cap: 'Đoạn thẳng ổn định: xanh = vạch sân/lưới (nửa dưới), xám = khung mái, băng rôn' },
-  { step: 'Khán giả im = phía thấp của ngưỡng Otsu trên âm lượng', algo: 'Otsu', img: 'steps/b5_am_luong.png', cap: 'Âm lượng + ngưỡng Otsu — video này BLV nói suốt lúc đánh nên QC tắt điều kiện âm thanh' },
-  { step: 'Pha = sân ∧ im; lấp lỗ ≤ 1 s, bỏ đoạn < 1,5 s (làm mượt)', algo: 'Đóng/mở 1-D', img: 'steps/b6_dong_thoi_gian.png', cap: 'Dải vàng = 19 đoạn toàn sân giữ lại trên toàn video' },
-  { step: 'Đệm +1 s trước (không lùi quá đầu cảnh sân) và +2 s sau', algo: 'Luật đệm', img: 'steps/b6_dong_thoi_gian.png', cap: 'Mỗi pha đệm thêm để giữ trọn cú giao bóng và tiếng reo' },
+  { step: 'Khán giả im = phía thấp của ngưỡng Otsu trên âm lượng', algo: 'Otsu', img: 'steps/b5_am_luong.png', cap: 'Âm lượng + ngưỡng Otsu tự chọn — BLV nói lúc đánh làm cổng này chập chờn (xem phần QC)' },
+  { step: 'Pha = sân ∧ im; lấp lỗ ≤ 5 s, bỏ đoạn < 1,5 s (làm mượt)', algo: 'Đóng/mở 1-D', img: 'steps/b6_dong_thoi_gian.png', cap: 'Dải vàng = 19 pha giữ lại trên toàn video' },
+  { step: 'Đệm +3 s trước (không lùi quá đầu cảnh sân) và +2 s sau', algo: 'Luật đệm', img: 'steps/b6_dong_thoi_gian.png', cap: 'Mỗi pha đệm thêm để giữ trọn cú giao bóng và tiếng reo' },
   { step: 'Chấm điểm pha → chọn trọn pha → ffmpeg cắt và nối', algo: 'Greedy / Knapsack', img: 'steps/b8_ket_qua.png', cap: 'Keyframe của 4 pha dài nhất được ghép vào highlight' },
 ];
 
 // Kết quả đầu-cuối trên video công khai (youtube.com/watch?v=PMRSb3ogWq4) — số từ runs/vi_du_dau_cuoi/ket_qua.json
 export const END2END = {
   url: 'youtube.com/watch?v=PMRSb3ogWq4',
-  input: '11,0 phút', rallies: '19 đoạn', ralliesLabel: 'đoạn toàn sân liên tục',
-  output: '8,8 phút', percent: '79%',
-  note: 'Video này phá cả hai giả định: bình luận viên nói suốt lúc đánh (chế độ âm thanh cắt pha giữa chừng — QC bắt được bằng khung hình) và camera zoom giữa pha. Hai lần khắc phục: tắt điều kiện âm thanh + so ngưỡng hysteresis. Trên phát sóng khán giả im, camera cố định (trận 67 phút), hệ tách 154 pha trọn vẹn.',
+  input: '11,0 phút', rallies: '19 pha', ralliesLabel: 'pha tách tự động',
+  output: '8,3 phút', percent: '75%',
+  note: 'Video có bình luận viên nói lúc đánh và camera zoom giữa pha — QC bắt được pha bị cắt giữa chừng bằng khung hình. Ba lần khắc phục: hysteresis cho zoom, lấp lỗ 5 s + đệm 3 s (từ QC độ chính xác trận 67 phút). Còn một điểm chuyển zoom mờ (việc mở V5).',
 };
 
 export const DEMO_CAPTIONS: { fromSec: number; text: string }[] = [
@@ -59,11 +59,11 @@ export const RESULTS = [
   { value: '154', label: 'pha tách được (trận 67 phút)' },
   { value: '6,3 s', label: 'độ dài pha trung vị' },
   { value: '21,9 ph', label: 'tổng thời lượng các pha' },
-  { value: '39/39', label: 'kiểm thử tự động pass' },
+  { value: '56/56', label: 'kiểm thử tự động pass' },
 ];
 
 export const HONEST = [
-  'Chưa có nhãn người gán → chưa đo F1; chất lượng pha kiểm bằng mắt',
+  'QC lấy mẫu có nhãn: pha đúng 33% → 70% sau sửa (mẫu độc lập; nhãn do agent QC, chưa có người kiểm độc lập)',
   'Bóng nảy / bóng chết mới là ỨNG VIÊN từ quỹ đạo — người xem xác nhận mới xuất pha',
   'Timecode hiện lấy từ camera sân + khán giả im; sự kiện bóng–vợt–sàn tự động là việc mở V4',
 ];

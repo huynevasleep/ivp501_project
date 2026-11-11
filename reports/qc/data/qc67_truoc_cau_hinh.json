@@ -1,0 +1,20 @@
+{
+  "video": "video_thu_nghiem/match2.mp4",
+  "mode": "audio",
+  "seed": 7,
+  "rallies": 148,
+  "highlight_minutes": 27.747403490946112,
+  "sampled_rallies": 30,
+  "sampled_gaps": 15,
+  "gaps_total": 109,
+  "nhan": {
+    "DUNG": "đúng: có cú giao bóng ở đầu, điểm đã kết thúc ở cuối",
+    "CAT_DAU": "cắt đầu muộn: lúc bắt đầu bóng đã đang bay (mất cú giao bóng)",
+    "CAT_DUOI": "cắt đuôi sớm: sau mốc cuối vẫn đang đánh (pha bị chặt)",
+    "CAT_HAI_DAU": "cắt cả đầu lẫn đuôi: mảnh vụn giữa pha",
+    "KHONG_PHAI_PHA": "không có giao tranh: nghỉ giữa điểm / cận mặt / replay / khán giả",
+    "KHONG_RO": "ảnh tĩnh không đủ phân biệt (vd. đang đánh hay replay) — cần xem clip",
+    "LOAI_DUNG": "khoảng bị loại đúng: không có giao tranh",
+    "SOT_PHA": "sót: trong khoảng bị loại đang có giao tranh"
+  }
+}

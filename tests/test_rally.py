@@ -38,15 +38,29 @@ def test_otsu_matches_opencv_reference():
 
 def test_rallies_are_quiet_court_stretches_with_serve_and_reaction():
     df, meta = timeline(MATCH)
-    rallies = detect_rallies(df, meta)
+    rallies = detect_rallies(df, meta, pre=1., gap=1.)
     assert [(r['core_start'], r['core_end']) for r in rallies] == [(8., 20.), (27., 30.)]
     assert rallies[0]['start'] == 7. and rallies[0]['end'] == 22.      # 1 s before the serve, 2 s of reaction
     assert all(a['end'] <= b['start'] for a, b in zip(rallies, rallies[1:]))
+    # Default pre-roll (3 s) reaches back to the serve but never past the start of the court shot.
+    (first, *_) = detect_rallies(df, meta)
+    assert first['start'] == 5.
+
+
+def test_mid_rally_noise_no_longer_splits_the_rally():
+    """QC 67-min match: commentary/crowd 'oohs' broke the quiet for a few seconds mid-rally and
+    gap=1 chopped one rally in two. The default gap bridges up to 5 s, not a longer pause."""
+    df, meta = timeline([(4, 1, -20), (6, 0, -31), (3, 0, -20), (6, 0, -31), (3, 1, -18)])
+    assert len(detect_rallies(df, meta, gap=1.)) == 2
+    (rally,) = detect_rallies(df, meta)
+    assert (rally['core_start'], rally['core_end']) == (4., 19.)
+    df, meta = timeline([(4, 1, -20), (6, 0, -31), (7, 0, -20), (6, 0, -31), (3, 1, -18)])
+    assert len(detect_rallies(df, meta)) == 2                       # a 7 s loud pause is a new point
 
 
 def test_without_audio_rallies_follow_the_court_camera_alone():
     df, meta = timeline(MATCH)                    # loud mid-rally commentary must not split play
-    rallies = detect_rallies(df, meta, use_audio=False)
+    rallies = detect_rallies(df, meta, use_audio=False, gap=1.)
     assert [(r['core_start'], r['core_end']) for r in rallies] == [(5., 20.), (24., 33.)]
 
 
@@ -167,10 +181,10 @@ def test_zoomed_court_shot_is_kept_by_hysteresis():
     df, meta = timeline([(4, 1, -20), (4, 0, -31), (4, 0, -31), (4, 0, -31), (4, 1, -18)])
     df['court_score'] = np.r_[np.full(8, .1), np.full(8, .9), np.full(8, .74), np.full(8, .9), np.full(8, .1)]
     meta['court_threshold'] = .78
-    (rally,) = detect_rallies(df, meta)
+    (rally,) = detect_rallies(df, meta, gap=1.)
     assert (rally['core_start'], rally['core_end']) == (4., 16.)      # the zoomed middle is not cut out
     df['court_score'] = np.r_[np.full(8, .1), np.full(8, .9), np.full(8, .3), np.full(8, .9), np.full(8, .1)]
-    assert len(detect_rallies(df, meta)) == 2                          # a real cutaway still splits
+    assert len(detect_rallies(df, meta, gap=1.)) == 2                  # a real cutaway still splits
 
 
 def test_detect_rallies_uses_edge_court_score():

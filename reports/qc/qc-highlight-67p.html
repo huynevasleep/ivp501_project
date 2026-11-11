@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QC video highlight trận 67 phút</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1f2328;--muted:#5d6670;--line:#e3e0d8;--card:#ffffff;--accent:#1565c0;--ok:#2e7d32;--bad:#c62828;--hl:#fff3cd;--code:#f2efe8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--fg:#e6e3dd;--muted:#a0a7ae;--line:#2c3036;--card:#1d2024;--accent:#6ea8ff;--ok:#7cc47f;--bad:#ef8a80;--hl:#3a3320;--code:#24282d}}
+:root[data-theme="dark"]{--bg:#15171a;--fg:#e6e3dd;--muted:#a0a7ae;--line:#2c3036;--card:#1d2024;--accent:#6ea8ff;--ok:#7cc47f;--bad:#ef8a80;--hl:#3a3320;--code:#24282d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 6px}
+h2{font-size:1.3rem;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:28px 0 6px}
+.meta{color:var(--muted);font-size:.92rem;margin-bottom:20px}
+p,li{max-width:72ch}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto}
+pre code{background:none;padding:0}
+.tbl{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:.94rem;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+figure{margin:16px 0 22px}
+figure img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+figcaption{color:var(--muted);font-size:.88rem;margin-top:6px}
+.key{background:var(--hl);border-left:4px solid var(--accent);padding:12px 16px;border-radius:6px;margin:14px 0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0;font-size:.9rem}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 9px}
+.flow b{color:var(--muted);font-weight:400}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+nav{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:18px 0}
+nav ol{margin:4px 0;padding-left:20px}
+nav a{color:var(--accent);text-decoration:none}
+p:has(> img){margin:16px 0 4px}
+p img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+p:has(> img)+p>em:only-child{color:var(--muted);font-size:.88rem}
+.tbl table td:first-child{min-width:9em}
+</style>
+</head>
+<body>
+<main>
+<!-- Sinh từ qc-highlight-67p.md bằng reports/build_html.py; sửa file .md rồi chạy lại, đừng sửa tay file này. -->
+<h1 id="qc-video-highlight-tran-67-phut-loi-o-au-sua-uoc-bao-nhieu-o-chinh-xac-con-lai">QC video highlight trận 67 phút: lỗi ở đâu, sửa được bao nhiêu, độ chính xác còn lại</h1>
+<p><em>QC · 11/11/2026 · nhánh <code>qc/rally-highlights-review</code> (đã merge <code>origin/rally-highlight</code> tới <code>2051548</code>) · trận <code>youtube.com/watch?v=pthJ1IQPqGE</code></em></p>
+<nav><strong>Mục lục</strong><ol>
+<li><a href="#1-ket-luan">1. Kết luận</a></li>
+<li><a href="#2-cach-qc-khong-can-xem-het-28-phut">2. Cách QC không cần xem hết 28 phút</a></li>
+<li><a href="#3-truoc-sua-loi-nao-bao-nhieu-seed-7-30-pha-15-khoang">3. Trước sửa: lỗi nào, bao nhiêu (seed 7, 30 pha + 15 khoảng)</a></li>
+<li><a href="#4-nguyen-nhan-goc-cong-am-thanh-chap-chon">4. Nguyên nhân gốc: cổng âm thanh chập chờn</a></li>
+<li><a href="#5-thu-phuong-an-sua-tren-chinh-cac-mau-loi">5. Thử phương án sửa trên chính các mẫu lỗi</a></li>
+<li><a href="#6-sau-sua-mau-oc-lap-seed-11-20-pha-10-khoang">6. Sau sửa: mẫu độc lập (seed 11, 20 pha + 10 khoảng)</a></li>
+<li><a href="#7-phan-khong-sua-uoc-bang-tham-so-o-chinh-xac-con-lai-7082-pha-ung">7. Phần không sửa được bằng tham số (độ chính xác còn lại ≈ 70–82% pha đúng)</a></li>
+<li><a href="#8-gioi-han-cua-ot-qc">8. Giới hạn của đợt QC</a></li>
+<li><a href="#9-chay-lai">9. Chạy lại</a></li>
+</ol></nav>
+
+<p><strong>Yêu cầu:</strong> highlight của trận 67 phút dài ~28 phút (41% thời lượng gốc) — quá dài để xem hết. Tìm chỗ sai, thống kê, xem sửa được không; không sửa được thì báo độ chính xác.</p>
+<h2 id="1-ket-luan">1. Kết luận</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Trước sửa (mặc định cũ)</th>
+<th>Sau sửa (mặc định mới <code>gap=5</code>, <code>pre=3</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mẫu kiểm</td>
+<td>30 pha + 15 khoảng bị loại (seed 7)</td>
+<td><strong>mẫu độc lập</strong> 20 pha + 10 khoảng (seed 11)</td>
+</tr>
+<tr>
+<td><strong>Pha đúng hoàn toàn</strong></td>
+<td><strong>10/30 = 33%</strong> (±17%)</td>
+<td><strong>14/20 = 70%</strong> (±20%); 14/17 = 82% nếu bỏ 3 ca ảnh tĩnh không phân xử được</td>
+</tr>
+<tr>
+<td>Pha có lỗi rõ ràng</td>
+<td>19/30 = 63%, 6 loại lỗi</td>
+<td>3/20 = 15%, chỉ còn 1 loại (cắt đuôi)</td>
+</tr>
+<tr>
+<td>Khoảng bị loại đúng</td>
+<td>13/15 = 87% (2 sót pha)</td>
+<td>9/10 = 90% (0 sót rõ, 1 không rõ)</td>
+</tr>
+<tr>
+<td>Highlight</td>
+<td>148 pha · 27,7 phút (41%)</td>
+<td>114 pha · 32,2 phút (48%)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Sửa được phần lớn:</strong> chỉ bằng hai tham số, lỗi rõ ràng giảm từ 63% xuống 15%, không làm hỏng mẫu đúng nào, đổi lại highlight dài thêm 4,5 phút. <strong>Phần còn lại không sửa được bằng tham số</strong> (mục 5). Độ dài highlight nên điều khiển bằng <strong>ngân sách chọn pha</strong>, không phải bằng cách cắt pha: trên trận này bản 25% = 41 pha / 16,7 phút, bản 10% = 13 pha / 6,7 phút — mỗi pha vẫn trọn.</p>
+<h2 id="2-cach-qc-khong-can-xem-het-28-phut">2. Cách QC không cần xem hết 28 phút</h2>
+<p>Lỗi của bộ tách pha nằm ở <strong>mốc cắt</strong>, không nằm giữa pha. Vì vậy lấy mẫu ngẫu nhiên có hạt giống cố định và chỉ soi quanh các mốc (<code>reports/qc/qc_highlight_mau.py</code>):</p>
+<ul>
+<li><strong>Mỗi pha một hàng 8 khung:</strong> đầu−3s, đầu−1s, ĐẦU, đầu+1,5s | cuối−1,5s, CUỐI, cuối+1,5s, cuối+4s.</li>
+<li><strong>Mỗi khoảng bị loại (≥ 4 s) 4 khung</strong> ở 15/38/62/85% — để bắt pha bị sót.</li>
+<li>Người QC gán nhãn từ bảng nhãn cố định; số liệu tính bằng <code>--thong-ke</code>, khoảng tin cậy 95% theo xấp xỉ chuẩn.</li>
+<li>Pha dài nghi gộp nhầm (&gt; 35 s) được soi thêm 8 khung giữa pha.</li>
+</ul>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Nhãn</th>
+<th>Nghĩa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DUNG</code></td>
+<td>có cú giao bóng ở đầu, điểm đã kết thúc ở cuối</td>
+</tr>
+<tr>
+<td><code>TRE_GIAO</code></td>
+<td>pha còn nguyên nhưng bắt đầu trễ ~1 s, mất động tác giao bóng</td>
+</tr>
+<tr>
+<td><code>CAT_DAU</code></td>
+<td>lúc bắt đầu bóng đã đang bay</td>
+</tr>
+<tr>
+<td><code>CAT_DUOI</code></td>
+<td>sau mốc cuối vẫn đang đánh</td>
+</tr>
+<tr>
+<td><code>CAT_HAI_DAU</code></td>
+<td>mảnh vụn giữa pha</td>
+</tr>
+<tr>
+<td><code>TACH_DOI</code></td>
+<td>nửa sau của một pha bị chặt đôi (bắt đầu đúng mốc cuối của pha trước — hình liền nhưng đếm thừa)</td>
+</tr>
+<tr>
+<td><code>KHONG_PHAI_PHA</code></td>
+<td>nghỉ giữa điểm / cận mặt / replay bị nhận là pha</td>
+</tr>
+<tr>
+<td><code>LOAI_DUNG</code> / <code>SOT_PHA</code></td>
+<td>khoảng bị loại đúng / đang có giao tranh mà bị loại</td>
+</tr>
+<tr>
+<td><code>KHONG_RO</code></td>
+<td>ảnh tĩnh không đủ phân xử (vd. đang đánh hay replay)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Ảnh mẫu (trước sửa): P07 + P08 là một pha bị chặt đôi tại 941,2 s; P10 là mảnh 3,5 s giữa pha.</p>
+<p><img alt="Trước sửa: chặt đôi và mảnh vụn" src="img/qc67_truoc_pha02.jpg" loading="lazy"></p>
+<h2 id="3-truoc-sua-loi-nao-bao-nhieu-seed-7-30-pha-15-khoang">3. Trước sửa: lỗi nào, bao nhiêu (seed 7, 30 pha + 15 khoảng)</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Nhãn</th>
+<th>Số</th>
+<th>Tỷ lệ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DUNG</code></td>
+<td>10</td>
+<td>33%</td>
+</tr>
+<tr>
+<td><code>CAT_DUOI</code></td>
+<td>6</td>
+<td>20%</td>
+</tr>
+<tr>
+<td><code>CAT_DAU</code></td>
+<td>4</td>
+<td>13%</td>
+</tr>
+<tr>
+<td><code>TRE_GIAO</code></td>
+<td>3</td>
+<td>10%</td>
+</tr>
+<tr>
+<td><code>TACH_DOI</code></td>
+<td>3</td>
+<td>10%</td>
+</tr>
+<tr>
+<td><code>CAT_HAI_DAU</code></td>
+<td>2</td>
+<td>7%</td>
+</tr>
+<tr>
+<td><code>KHONG_PHAI_PHA</code></td>
+<td>1</td>
+<td>3%</td>
+</tr>
+<tr>
+<td><code>KHONG_RO</code></td>
+<td>1</td>
+<td>3%</td>
+</tr>
+<tr>
+<td>khoảng: <code>LOAI_DUNG</code> / <code>SOT_PHA</code></td>
+<td>13 / 2</td>
+<td>87% / 13%</td>
+</tr>
+</tbody>
+</table></div>
+<p>Quan sát: các "pha" ≤ 5 s gần như đều là mảnh vụn; các pha chặt đôi đều rơi vào <strong>pha hay nhất</strong> (khán giả "ồ" giữa pha).</p>
+<h2 id="4-nguyen-nhan-goc-cong-am-thanh-chap-chon">4. Nguyên nhân gốc: cổng âm thanh chập chờn</h2>
+<p>Trận này có <strong>bình luận viên nói trong lúc đánh</strong>, nên ngưỡng "khán giả im" (Otsu trên âm lượng cả trận) tụt xuống <strong>−31,5 dBFS</strong> — chỉ những tích tắc rất lặng mới được tính là đang chơi. Ví dụ khoảng bị loại K01 (71–113 s): camera sân đạt suốt (điểm khớp 0,91–0,93 &gt; ngưỡng 0,67) nhưng âm lượng −22…−25 dBFS, chỉ 2 mẫu lọt dưới ngưỡng. Chuỗi "đang chơi" vì thế bật/tắt liên tục; với lấp lỗ chỉ 1 s, mỗi lần tắt &gt; 1 s là một nhát cắt — sinh ra đủ cả <code>CAT_DAU</code>, <code>CAT_DUOI</code>, <code>TACH_DOI</code>, <code>CAT_HAI_DAU</code>. Còn <code>TRE_GIAO</code> do đệm trước 1 s ngắn hơn khoảng từ lúc camera sân lên hình tới cú giao.</p>
+<h2 id="5-thu-phuong-an-sua-tren-chinh-cac-mau-loi">5. Thử phương án sửa trên chính các mẫu lỗi</h2>
+<p>Mỗi mẫu lỗi có một "điểm cắt" cụ thể; phương án <em>vá</em> khi điểm đó nằm gọn trong một đoạn (có lề 1–2 s), <em>hỏng</em> khi mẫu <code>DUNG</code> bị tách hoặc khoảng <code>LOAI_DUNG</code> bị phủ ở khung giữa (<code>reports/qc/qc_highlight_sua.py</code>, dữ liệu <code>data/qc67_phuong_an_sua.csv</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Vá</th>
+<th>Hỏng</th>
+<th>Số đoạn</th>
+<th>Phút</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A cũ (lấp 1 s, đệm 1 s)</td>
+<td>0/21</td>
+<td>0/23</td>
+<td>148</td>
+<td>27,7</td>
+</tr>
+<tr>
+<td>B lấp 3 s</td>
+<td>11/21</td>
+<td>0/23</td>
+<td>125</td>
+<td>29,8</td>
+</tr>
+<tr>
+<td>C lấp 5 s</td>
+<td>14/21</td>
+<td>0/23</td>
+<td>114</td>
+<td>31,0</td>
+</tr>
+<tr>
+<td>D chỉ camera sân</td>
+<td>18/21</td>
+<td>5/23</td>
+<td>124</td>
+<td>42,4</td>
+</tr>
+<tr>
+<td>E camera sân + có ≥ 1,5 s im</td>
+<td>18/21</td>
+<td>2/23</td>
+<td>114</td>
+<td>36,4</td>
+</tr>
+<tr>
+<td><strong>F đã chọn: lấp 5 s, đệm 3 s</strong></td>
+<td><strong>17/21</strong></td>
+<td><strong>0/23</strong></td>
+<td><strong>114</strong></td>
+<td><strong>32,2</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Quét <code>gap</code> 4–10 s × <code>pre</code> 1–3 s: vùng <code>gap</code> 4–5 s là <strong>vùng phẳng không hỏng</strong>; từ <code>gap</code> 6 s bắt đầu gộp nhầm điểm khác (hỏng 1 → 7, đoạn dài tới 162 s). Đã đổi mặc định của <code>detect_rallies</code> thành <code>gap=5, pre=3</code> (kèm test <code>test_mid_rally_noise_no_longer_splits_the_rally</code>; các test cơ chế cũ ghim tham số cũ). Lưu ý: 17/21 là số <strong>trong mẫu dùng để chọn</strong> — số độ chính xác thật lấy từ mẫu độc lập ở mục 6.</p>
+<h2 id="6-sau-sua-mau-oc-lap-seed-11-20-pha-10-khoang">6. Sau sửa: mẫu độc lập (seed 11, 20 pha + 10 khoảng)</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Nhãn</th>
+<th>Số</th>
+<th>Tỷ lệ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DUNG</code></td>
+<td>14</td>
+<td>70%</td>
+</tr>
+<tr>
+<td><code>CAT_DUOI</code></td>
+<td>3</td>
+<td>15%</td>
+</tr>
+<tr>
+<td><code>KHONG_RO</code></td>
+<td>3</td>
+<td>15%</td>
+</tr>
+<tr>
+<td>khoảng: <code>LOAI_DUNG</code> / <code>KHONG_RO</code></td>
+<td>9 / 1</td>
+<td>90% / 10%</td>
+</tr>
+</tbody>
+</table></div>
+<p>Năm trên sáu loại lỗi không còn xuất hiện. Ví dụ: P03 cũ (trễ giao) nay bắt đầu đúng khung giao bóng 498,0 s; mảnh 2,8 s cũ (P16) nay liền thành pha 12,5 s; vùng K01 cũ (sót) nay được phủ. Rủi ro mới của lấp lỗ dài là gộp nhầm hai điểm — đã soi giữa ba pha dài nhất (49 s, 42 s, 39 s): giao tranh liên tục, luân phiên camera chính ↔ camera hông, không có cảnh nghỉ:</p>
+<p><img alt="Sau sửa: các pha dài liền mạch, không gộp nhầm" src="img/qc67_pha_dai_lien_mach.jpg" loading="lazy"></p>
+<p><img alt="Sau sửa: một tấm mẫu độc lập" src="img/qc67_sau_pha01.jpg" loading="lazy"></p>
+<p>Kiểm chéo trên video 11 phút (<code>PMRSb3ogWq4</code>, cũng có BLV): mặc định mới nối ba mảnh 94,5 → 98,2 → 105,5 → 116 s thành một pha; chế độ âm thanh nay cho 19 pha / 8,3 phút, không còn cần chế độ "chỉ camera sân" làm lối thoát.</p>
+<h2 id="7-phan-khong-sua-uoc-bang-tham-so-o-chinh-xac-con-lai-7082-pha-ung">7. Phần không sửa được bằng tham số (độ chính xác còn lại ≈ 70–82% pha đúng)</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Lỗi còn lại</th>
+<th>Ví dụ</th>
+<th>Vì sao tham số không cứu</th>
+<th>Cần gì</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cắt đuôi khi pha kết thúc trong tiếng ồn (giao tranh hấp dẫn ở bếp, khán giả la to trước khi hết điểm)</td>
+<td>P11, P15, P16 (sau sửa)</td>
+<td>âm thanh đã ồn &gt; 5 s trước khi hết điểm</td>
+<td>tín hiệu chuyển động/bóng: kéo dài pha khi camera sân còn và cầu thủ còn di chuyển</td>
+</tr>
+<tr>
+<td>Giao tranh thật quay bằng camera hông</td>
+<td>K06 (trước sửa)</td>
+<td>camera hông dùng cho cả live lẫn replay; điểm khớp 0,57–0,61 dưới ngưỡng</td>
+<td>nhận diện replay bằng hiệu ứng chuyển cảnh quả bóng "?" (replay luôn kẹp giữa hai hiệu ứng này)</td>
+</tr>
+<tr>
+<td>Nghỉ giữa điểm mà khán giả im</td>
+<td>P24 (trước sửa)</td>
+<td>âm thanh và camera đều "đúng"</td>
+<td>chuyển động/bóng</td>
+</tr>
+<tr>
+<td>Chuyển zoom mờ giữa pha</td>
+<td>video 11 phút, 57,5 s</td>
+<td>điểm khớp khuôn rơi 0,62 vài giây</td>
+<td>bám khuôn có bù tỷ lệ (việc mở V5)</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="8-gioi-han-cua-ot-qc">8. Giới hạn của đợt QC</h2>
+<ul>
+<li>Một trận, một người gán nhãn (agent QC), từ <strong>ảnh tĩnh</strong> — ca nào ảnh tĩnh không phân xử được đều ghi <code>KHONG_RO</code> chứ không đoán; độ chính xác báo cả hai cách tính (tính <code>KHONG_RO</code> là sai / bỏ ra).</li>
+<li>Cỡ mẫu nhỏ: khoảng tin cậy ±17–20%. Hướng tiếp: người thứ hai gán nhãn độc lập cùng các tấm ảnh (seed cố định nên ai chạy cũng ra đúng mẫu) để đo độ đồng thuận.</li>
+<li>Ảnh trong app của anh Công Anh (158 pha / 28:56) là bản chưa có hysteresis; bản QC (148 / 27,7 phút) có — cùng hệ, chênh 6%.</li>
+</ul>
+<h2 id="9-chay-lai">9. Chạy lại</h2>
+<pre><code class="language-bash"># phân tích trận (≈ 6 phút trên CPU, 1080p)
+.venv/bin/python -c &quot;from core import analyze; analyze('video_thu_nghiem/match2.mp4','runs/match67_v2/analysis')&quot;
+# mẫu trước sửa (nhãn ở data/qc67_truoc_nhan.csv) — dùng mặc định cũ khi sinh ảnh:
+#   git checkout 025ff72 -- core.py   rồi chạy lệnh dưới, xong khôi phục core.py
+.venv/bin/python reports/qc/qc_highlight_mau.py video_thu_nghiem/match2.mp4 runs/match67_v2/analysis runs/qc_mau audio 30 15 7
+# mẫu sau sửa (mặc định mới)
+.venv/bin/python reports/qc/qc_highlight_mau.py video_thu_nghiem/match2.mp4 runs/match67_v2/analysis runs/qc_mau_sau audio 20 10 11
+# thống kê và bảng phương án
+.venv/bin/python reports/qc/qc_highlight_mau.py --thong-ke reports/qc/data/qc67_truoc_nhan.csv
+.venv/bin/python reports/qc/qc_highlight_mau.py --thong-ke reports/qc/data/qc67_sau_nhan.csv
+.venv/bin/python reports/qc/qc_highlight_sua.py runs/match67_v2/analysis reports/qc/data/qc67_truoc_nhan.csv
+</code></pre>
+</main>
+</body>
+</html>

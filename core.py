@@ -293,7 +293,7 @@ def quiet_mask(df):
     return loud < threshold, float(threshold)
 
 
-def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3., use_audio=True):
+def detect_rallies(df, meta, pre=3., post=2., min_len=1.5, gap=5., reaction=3., use_audio=True):
     """Rallies of a broadcast racket-sport match, as whole intervals that are never cut.
 
     A rally is a quiet stretch while a fixed court camera is on screen: a frame is on a court camera
@@ -313,7 +313,11 @@ def detect_rallies(df, meta, pre=1., post=2., min_len=1.5, gap=1., reaction=3., 
     # rallies mid-play; court-only segments keep pauses but never split live play.
     quiet = quiet_mask(df)[0] if use_audio else np.ones(len(df), bool)
     play = court & quiet
-    # Bridge short gaps (a camera switch or a shout mid-rally) between two quiet stretches.
+    # Bridge gaps up to `gap` s between two quiet stretches. Defaults gap=5 / pre=3 come from the
+    # QC of the 67-minute match (reports/qc/qc-highlight-67p.md): commentary and crowd "oohs"
+    # break the quiet mid-rally, and with gap=1 two-thirds of sampled rallies came out cut or
+    # split; gap 4-5 with pre 3 repaired 17/21 sampled errors with no regression, gap >= 6
+    # started merging separate points.
     hole = int(round(gap/step))
     for a, b in _runs(~play):
         if 0 < a and b < len(play) and b-a <= hole: play[a:b] = True

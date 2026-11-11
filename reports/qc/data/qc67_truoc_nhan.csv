@@ -1,0 +1,46 @@
+ma,loai,start,end,dai,nhan,ghi_chu
+P01,pha,24.0,29.0,5.0,DUNG,"pha đầu trận, vào ngay sau intro"
+P02,pha,246.7,261.5,14.8,CAT_DUOI,"camera hông: +1,5s và +4s vẫn đang đánh"
+P03,pha,499.0,509.0,10.0,TRE_GIAO,đầu−1s là động tác giao bóng
+P04,pha,515.5,523.5,8.0,DUNG,
+P05,pha,724.2,730.7,6.5,CAT_DAU,"đầu−3s, đầu−1s đã đang đánh"
+P06,pha,907.9,918.4,10.5,DUNG,
+P07,pha,932.2,941.2,9.0,CAT_DAU,đầu−3s đã chạy đánh; nửa đầu của cặp chặt đôi với P08
+P08,pha,941.2,965.5,24.3,TACH_DOI,"bắt đầu đúng 941,2s = cuối P07"
+P09,pha,1056.6,1061.6,5.0,CAT_DAU,đầu−1s đã giao tranh ở lưới
+P10,pha,1182.4,1185.9,3.5,CAT_HAI_DAU,"mảnh 3,5s; trước và sau đều đang đánh"
+P11,pha,1744.7,1754.8,10.0,DUNG,
+P12,pha,1792.3,1805.8,13.5,TRE_GIAO,đầu−1s là động tác giao bóng
+P13,pha,1859.9,1883.4,23.5,DUNG,nửa đầu của cặp chặt đôi với P14
+P14,pha,1883.4,1888.4,5.0,TACH_DOI,"bắt đầu đúng 1883,4s = cuối P13"
+P15,pha,1954.0,1974.5,20.5,DUNG,
+P16,pha,1985.5,1988.2,2.8,CAT_DUOI,"mảnh 2,8s; sau cuối cầu thủ lên lưới đánh tiếp (độ tin trung bình)"
+P17,pha,2148.6,2153.1,4.5,CAT_DAU,đầu−3s đã đang đánh
+P18,pha,2429.4,2433.9,4.5,CAT_HAI_DAU,"mảnh 4,5s giữa pha"
+P19,pha,2545.0,2558.1,13.0,CAT_DUOI,"+1,5s vẫn lăn xả ở bếp"
+P20,pha,2628.6,2633.6,5.0,CAT_DUOI,sau cuối vẫn đang đánh
+P21,pha,2740.7,2744.7,4.0,DUNG,nửa đầu của cặp chặt đôi với P22
+P22,pha,2744.7,2764.8,20.0,TACH_DOI,"bắt đầu đúng 2744,7s = cuối P21"
+P23,pha,2791.3,2801.3,10.0,DUNG,
+P24,pha,2892.4,2896.9,4.5,KHONG_PHAI_PHA,"nghỉ giữa điểm, cầu thủ nhặt bóng"
+P25,pha,2899.4,2929.4,30.0,KHONG_RO,"đuôi: còn ở lưới sau cuối, không chắc đang đánh"
+P26,pha,3072.6,3077.1,4.5,CAT_DUOI,"+1,5s và +4s vẫn ở lưới đánh"
+P27,pha,3432.4,3438.4,6.0,CAT_DUOI,"+1,5s vẫn đánh, hết điểm ~+3s"
+P28,pha,3506.0,3515.5,9.5,DUNG,
+P29,pha,3525.5,3552.5,27.0,DUNG,
+P30,pha,3564.6,3591.6,27.0,TRE_GIAO,đầu−1s là động tác giao bóng
+K01,khoang,71.1,113.1,42.0,SOT_PHA,"camera chính ✓ nhưng BLV nói → âm lượng −22…−25 dBFS > ngưỡng −31,5"
+K02,khoang,488.0,499.0,11.0,LOAI_DUNG,
+K03,khoang,759.3,773.8,14.5,LOAI_DUNG,
+K04,khoang,807.3,820.8,13.5,LOAI_DUNG,cuối khoảng chứa cú giao của pha sau (cùng lỗi TRE_GIAO)
+K05,khoang,901.9,907.9,6.0,LOAI_DUNG,
+K06,khoang,918.4,928.4,10.0,SOT_PHA,camera hông quay giao tranh thật 924–928s = phần đầu mất của P07
+K07,khoang,1495.0,1500.5,5.5,LOAI_DUNG,
+K08,khoang,1609.1,1617.1,8.0,LOAI_DUNG,
+K09,khoang,1781.3,1792.3,11.0,LOAI_DUNG,"replay camera hông + hiệu ứng bóng ""?"" — loại đúng"
+K10,khoang,2538.5,2545.0,6.5,LOAI_DUNG,
+K11,khoang,2731.7,2740.7,9.0,LOAI_DUNG,
+K12,khoang,3245.7,3253.7,8.0,LOAI_DUNG,replay — loại đúng
+K13,khoang,3301.3,3314.8,13.5,LOAI_DUNG,replay — loại đúng
+K14,khoang,3362.4,3370.4,8.0,LOAI_DUNG,replay — loại đúng
+K15,khoang,3385.9,3401.9,16.0,LOAI_DUNG,

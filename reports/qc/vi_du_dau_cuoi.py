@@ -1,7 +1,7 @@
 """Ví dụ ĐẦU-CUỐI: một video trận đấu → các bước xử lý → video highlight, kèm ảnh từng bước.
 
-Chạy:  .venv/bin/python reports/qc/vi_du_dau_cuoi.py video_thu_nghiem/match_11p.mp4 runs/vi_du_dau_cuoi [court|audio]
-Chế độ (tham số 3, mặc định court):
+Chạy:  .venv/bin/python reports/qc/vi_du_dau_cuoi.py video_thu_nghiem/match_11p.mp4 runs/vi_du_dau_cuoi [audio|court]
+Chế độ (tham số 3, mặc định audio — từ QC 11/11 với gap=5, pre=3 chế độ âm thanh đủ bền trên video có BLV):
   court — tách pha CHỈ theo camera sân (use_audio=False): không bao giờ cắt giữa pha,
           chấp nhận giữ khoảng nghỉ. Dùng cho video có bình luận viên nói suốt lúc đánh
           (QC 10/11: chế độ audio cắt pha 51→55,5 s dù trận còn đánh tới ~70 s).
@@ -30,7 +30,7 @@ def save(path, image, color=False):
     print('OK', path)
 
 
-def main(video, out, mode='court'):
+def main(video, out, mode='audio'):
     video, out = Path(video), Path(out)
     steps = out/'steps'; steps.mkdir(parents=True, exist_ok=True)
 

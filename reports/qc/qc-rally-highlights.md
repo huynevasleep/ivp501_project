@@ -168,6 +168,10 @@ Stakeholder xem demo và nghi đoạn preview "bị cắt đứt giữa chừng 
 
 Bài học QC: con số pha/phút tự nó không chứng minh gì — **soi khung hình tại mốc cắt** là phép kiểm bắt buộc, và chính nó bắt được cả hai lỗi trên.
 
+### 6.4 Vòng QC 11/11: độ chính xác của highlight trận 67 phút
+
+Báo cáo riêng: [qc-highlight-67p.md](qc-highlight-67p.md). Tóm tắt: lấy mẫu có nhãn tại mốc cắt cho thấy với mặc định cũ chỉ **33%** pha đúng hoàn toàn (6 loại lỗi; gốc là cổng âm thanh chập chờn do BLV); đổi mặc định `detect_rallies` thành `gap=5, pre=3` vá 17/21 mẫu lỗi không hỏng mẫu đúng nào; trên **mẫu độc lập** sau sửa: **70%** pha đúng (82% nếu bỏ ca không rõ), chỉ còn lỗi cắt đuôi. 56 test pass.
+
 ## 7. Sinh lại bản HTML
 
 ```bash

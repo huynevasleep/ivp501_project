@@ -1,0 +1,31 @@
+ma,loai,start,end,dai,nhan,ghi_chu
+P01,pha,78.6,88.6,10.0,DUNG,vùng K01 cũ (sót pha) nay đã được phủ
+P02,pha,281.8,300.8,19.0,KHONG_RO,đuôi: cầu thủ chạm vợt ở lưới hay còn đánh?
+P03,pha,498.0,509.0,11.0,DUNG,"P03 cũ (trễ giao) nay bắt đầu đúng khung giao bóng 498,0s"
+P04,pha,531.0,548.0,17.0,DUNG,
+P05,pha,559.6,594.1,34.5,DUNG,
+P06,pha,1548.0,1576.6,28.5,DUNG,
+P07,pha,1730.2,1736.2,6.0,DUNG,
+P08,pha,1768.8,1781.3,12.5,DUNG,
+P09,pha,1985.5,1998.0,12.5,DUNG,"mảnh vụn 2,8s cũ (P16) nay liền thành 12,5s"
+P10,pha,2007.0,2029.5,22.5,DUNG,
+P11,pha,2046.0,2050.0,4.0,CAT_DUOI,+4s camera hông vẫn giao tranh ở bếp
+P12,pha,2340.3,2345.3,5.0,KHONG_RO,đuôi không chắc
+P13,pha,2358.4,2407.4,49.0,KHONG_RO,"đầu có thể trễ 1–2s; giữa 49s liền mạch, không gộp nhầm"
+P14,pha,2628.1,2670.2,42.0,DUNG,"42s liền mạch, không gộp nhầm"
+P15,pha,2898.4,2937.4,39.0,CAT_DUOI,"+1,5s và +4s vẫn ở bếp đánh; giữa 39s liền mạch"
+P16,pha,3207.2,3214.7,7.5,CAT_DUOI,"+1,5s vẫn giao tranh"
+P17,pha,3253.7,3270.3,16.5,DUNG,
+P18,pha,3430.9,3442.4,11.5,DUNG,
+P19,pha,3506.0,3515.5,9.5,DUNG,
+P20,pha,3525.5,3552.5,27.0,DUNG,
+K01,khoang,527.0,531.0,4.0,LOAI_DUNG,
+K02,khoang,730.7,739.7,9.0,LOAI_DUNG,
+K03,khoang,1050.5,1054.6,4.0,LOAI_DUNG,
+K04,khoang,1805.8,1828.8,23.0,LOAI_DUNG,
+K05,khoang,1888.4,1908.9,20.5,LOAI_DUNG,góc khán đài = góc replay (giống K12/K14 mẫu trước)
+K06,khoang,1998.0,2007.0,9.0,LOAI_DUNG,
+K07,khoang,3098.1,3114.6,16.5,KHONG_RO,"85%: camera chính, không chắc đang đánh"
+K08,khoang,3341.3,3347.3,6.0,LOAI_DUNG,
+K09,khoang,3362.4,3370.4,8.0,LOAI_DUNG,replay
+K10,khoang,3552.5,3562.6,10.0,LOAI_DUNG,"cuối khoảng có cú giao của pha sau, trễ ~1,5s"
