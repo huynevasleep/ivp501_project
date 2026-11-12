@@ -9,7 +9,8 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import {Card, Chip, COLORS, H1, Kicker, Scene, Stagger} from './ui';
+import {Card, Chip, COLORS, FONT, H1, Kicker, Scene, Stagger} from './ui';
+const TITLE_MATCH = 'youtu.be/pthJ1IQPqGE';
 import {ALGOS, COURSE, DATE, DEMO_CAPTIONS, END2END, GOALS, HONEST, PIPELINE, REPO, RESULTS, TEAM, TITLE, TOPIC} from './data';
 
 // ---------- 1. Tiêu đề ----------
@@ -293,6 +294,28 @@ export const DemoScene: React.FC<{duration: number; rawFrames: number}> = ({dura
         </div>
       </div>
     </Scene>
+  );
+};
+
+// ---------- 5b. Demo ứng dụng thật (quay màn hình Streamlit, phụ đề đã in sẵn trong clip) ----------
+export const AppDemoScene: React.FC<{duration: number}> = ({duration}) => {
+  const frame = useCurrentFrame();
+  const opacity = interpolate(frame, [0, 12, duration - 12, duration], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const kicker = interpolate(frame, [0, 30, 150, 180], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  return (
+    <AbsoluteFill style={{background: '#000', opacity}}>
+      <OffthreadVideo muted src={staticFile('demo_app.mp4')} style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+      <div
+        style={{
+          position: 'absolute', top: 28, left: 40, opacity: kicker, fontFamily: FONT,
+          background: 'rgba(10,20,36,.85)', border: `1.5px solid ${COLORS.border}`, borderRadius: 14,
+          padding: '12px 22px', color: COLORS.text, fontSize: 30, fontWeight: 700,
+        }}
+      >
+        <span style={{color: COLORS.accent, letterSpacing: 4, fontSize: 22, marginRight: 16}}>DEMO ỨNG DỤNG</span>
+        Clip 50 s của trận 67 phút ({TITLE_MATCH}) chạy qua app thật
+      </div>
+    </AbsoluteFill>
   );
 };
 

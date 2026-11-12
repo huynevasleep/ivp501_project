@@ -25,3 +25,22 @@ EOF
 ```
 
 (`runs/qc_eval/...` sinh bởi `reports/qc/danh_gia_video_that.py`; `video_thu_nghiem/` tải bằng yt-dlp.)
+
+## Cảnh "Demo ứng dụng" (quay màn hình app thật)
+
+`public/demo_app.mp4` (≈70 s) là bản quay Streamlit chạy clip 50 s của trận 67 phút, dựng lại với
+phụ đề từng bước. Quay lại khi app đổi giao diện:
+
+```bash
+# 1. chạy app (terminal thường)
+.venv/bin/python -m streamlit run app.py --server.headless true --server.port 8599
+# 2. quay bằng Chrome tự động (Playwright): ra runs/quay_demo/raw.webm + moc.json
+.venv/bin/pip install playwright
+.venv/bin/python video_nop_bai/quay_app.py video_thu_nghiem/demo_67p_50s.mp4 runs/quay_demo
+# 3. dựng: phóng 1080p, tua nhanh đoạn chờ, in phụ đề theo moc.json
+.venv/bin/python video_nop_bai/dung_demo_app.py runs/quay_demo video_nop_bai/public/demo_app.mp4
+```
+
+Clip đầu vào `video_thu_nghiem/demo_67p_50s.mp4` = `match2.mp4` (youtu.be/pthJ1IQPqGE) từ 735,7 s,
+dài 50,3 s, thu 1280×720 — hai pha trọn + khoảng nghỉ, chọn vì kết quả trên clip trùng kết quả trên
+cả trận (lệch mốc < 4 s). Nếu `SCENES.appDemo` trong `src/Main.tsx` không khớp thời lượng clip, cập nhật.
